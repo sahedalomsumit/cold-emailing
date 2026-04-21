@@ -4,6 +4,7 @@ import api from "../utils/api";
 import { supabase } from "../utils/supabase";
 import { useAuth } from "../context/AuthContext";
 import {
+  Plus,
   Play,
   Pause,
   Edit2,
