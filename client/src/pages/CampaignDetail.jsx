@@ -2,7 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../utils/api';
 import { supabase } from '../utils/supabase';
-import { Upload, Trash2, ArrowLeft, CheckCircle2, XCircle, Mail, Clock } from 'lucide-react';
+import { 
+  Upload, Trash2, ArrowLeft, CheckCircle2, XCircle, Mail, Clock, 
+  Instagram, Facebook, Twitter, Linkedin, Globe, Phone 
+} from 'lucide-react';
 
 const StatusBadge = ({ status }) => {
   const styles = {
@@ -169,7 +172,7 @@ const CampaignDetail = () => {
             <tr className="bg-card/80 border-b border-border">
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Lead</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Company</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Website/Phone</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Contact & Social</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Stats</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Status</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-right">Actions</th>
@@ -184,9 +187,45 @@ const CampaignDetail = () => {
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-300">{lead.company}</td>
                 <td className="px-6 py-4">
-                  {lead.website && <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noreferrer" className="text-primary hover:underline block text-xs truncate max-w-[150px]">{lead.website}</a>}
-                  {lead.phone && <p className="text-xs text-gray-500">{lead.phone}</p>}
-                  {!lead.website && !lead.phone && <span className="text-gray-600">—</span>}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-3">
+                      {lead.website && (
+                        <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noreferrer" title="Website" className="p-1.5 rounded-lg bg-card border border-border text-gray-400 hover:text-primary transition-colors">
+                          <Globe size={14} />
+                        </a>
+                      )}
+                      {lead.phone && (
+                        <a href={`tel:${lead.phone}`} title={lead.phone} className="p-1.5 rounded-lg bg-card border border-border text-gray-400 hover:text-primary transition-colors">
+                          <Phone size={14} />
+                        </a>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {lead.instagram && (
+                        <a href={lead.instagram} target="_blank" rel="noreferrer" title="Instagram" className="text-gray-500 hover:text-pink-500 transition-colors">
+                          <Instagram size={14} />
+                        </a>
+                      )}
+                      {lead.facebook && (
+                        <a href={lead.facebook} target="_blank" rel="noreferrer" title="Facebook" className="text-gray-500 hover:text-blue-600 transition-colors">
+                          <Facebook size={14} />
+                        </a>
+                      )}
+                      {lead.twitter && (
+                        <a href={lead.twitter} target="_blank" rel="noreferrer" title="Twitter" className="text-gray-500 hover:text-sky-400 transition-colors">
+                          <Twitter size={14} />
+                        </a>
+                      )}
+                      {lead.linkedin && (
+                        <a href={lead.linkedin} target="_blank" rel="noreferrer" title="LinkedIn" className="text-gray-500 hover:text-blue-500 transition-colors">
+                          <Linkedin size={14} />
+                        </a>
+                      )}
+                      {!lead.instagram && !lead.facebook && !lead.twitter && !lead.linkedin && !lead.website && !lead.phone && (
+                        <span className="text-gray-600 text-xs">—</span>
+                      )}
+                    </div>
+                  </div>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-col gap-1">
