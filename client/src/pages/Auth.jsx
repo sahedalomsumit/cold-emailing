@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { Navigate } from 'react-router-dom';
 import { Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { login, signup } = useAuth();
+  const { login, signup, user, loading: authLoading } = useAuth();
+
+  if (!authLoading && user) {
+    return <Navigate to="/" />;
+  }
 
   const [formData, setFormData] = useState({
     email: '',
