@@ -16,7 +16,17 @@ const PORT = process.env.PORT || 4000;
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 // Middleware
-app.use(cors({ origin: process.env.CLIENT_URL }));
+app.use(cors({
+    origin: (origin, callback) => {
+        const allowedOrigin = process.env.CLIENT_URL?.replace(/\/$/, '');
+        if (!origin || origin.startsWith(allowedOrigin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
 app.use(express.json());
 
 const upload = multer({ dest: 'uploads/' });
