@@ -187,6 +187,48 @@ app.get('/api/logs', authenticate, async (req, res) => {
     res.json(data);
 });
 
+// --- SUMMARY STATS ---
+app.get('/api/summary', authenticate, async (req, res) => {
+    try {
+        const { count: totalLeads } = await supabase
+            .from('leads')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', req.user.id);
+
+        const { count: contacted } = await supabase
+            .from('leads')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', req.user.id)
+            .neq('status', 'pending');
+
+        const { count: replied } = await supabase
+            .from('leads')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', req.user.id)
+            .eq('status', 'replied');
+
+        const { count: dailyCount } = await supabase
+            .from('email_logs')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'sent')
+            .gte('sent_at', new Date(new Date().setHours(0,0,0,0)).toISOString());
+
+        // Note: dailyCount should ideally be filtered by user, but email_logs 
+        // doesn't have user_id directly. We'd need a join or add user_id to logs.
+        // For now, this is global which matches the Brevo limit concept.
+
+        res.json({
+            totalLeads: totalLeads || 0,
+            contacted: contacted || 0,
+            replied: replied || 0,
+            replyRate: contacted > 0 ? ((replied / contacted) * 100).toFixed(1) : 0,
+            dailyCount: dailyCount || 0
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // --- TEST EMAIL ---
 app.post('/api/send-test', authenticate, async (req, res) => {
     const { email, name, company, subject, body } = req.body;

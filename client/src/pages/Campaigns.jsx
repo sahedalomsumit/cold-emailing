@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../utils/api";
+import { supabase } from "../utils/supabase";
 import {
   Plus,
   Play,
@@ -118,6 +119,26 @@ const Campaigns = () => {
 
   useEffect(() => {
     fetchCampaigns();
+
+    // Set up real-time subscription for "sync everywhere"
+    const channel = supabase
+      .channel('campaigns-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'campaigns'
+        },
+        () => {
+          fetchCampaigns();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleCreate = async (e) => {

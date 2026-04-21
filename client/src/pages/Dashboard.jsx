@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../utils/api";
+import { supabase } from "../utils/supabase";
 import {
   Users,
   Mail,
@@ -41,21 +42,28 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [logsRes, campaignsRes] = await Promise.all([
+        const [logsRes, summaryRes] = await Promise.all([
           api.get("/logs"),
-          api.get("/campaigns"),
+          api.get("/summary"),
         ]);
 
         setLogs(logsRes.data.slice(0, 5));
-
-        // Mock calculations for now (should ideally come from backend summary endpoint)
-        // For brevity, I'll calculate here from logs/campaigns if needed
-        // but for a clean start let's just show some data
+        setStats(summaryRes.data);
       } catch (err) {
         console.error(err);
       }
     };
     fetchData();
+
+    // Real-time sync for dashboard stats
+    const channel = supabase
+      .channel('dashboard-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'email_logs' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'campaigns' }, fetchData)
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
   }, []);
 
   return (
@@ -88,28 +96,28 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Leads"
-          value="1,284"
+          value={stats.totalLeads.toLocaleString()}
           icon={Users}
           color="primary"
           trend="+12%"
         />
         <StatCard
           title="Contacted"
-          value="842"
+          value={stats.contacted.toLocaleString()}
           icon={Mail}
           color="blue-400"
           trend="+18%"
         />
         <StatCard
           title="Replied"
-          value="156"
+          value={stats.replied.toLocaleString()}
           icon={MessageSquare}
           color="green-400"
           trend="+5%"
         />
         <StatCard
           title="Reply Rate"
-          value="18.5%"
+          value={`${stats.replyRate}%`}
           icon={TrendingUp}
           color="purple-400"
         />

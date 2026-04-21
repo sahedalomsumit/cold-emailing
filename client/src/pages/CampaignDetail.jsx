@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../utils/api';
+import { supabase } from '../utils/supabase';
 import { Upload, Trash2, ArrowLeft, CheckCircle2, XCircle, Mail, Clock } from 'lucide-react';
 
 const StatusBadge = ({ status }) => {
@@ -42,6 +43,25 @@ const CampaignDetail = () => {
 
   useEffect(() => {
     fetchData();
+
+    // Real-time sync for leads in this campaign
+    const channel = supabase
+      .channel(`campaign-leads-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'leads',
+          filter: `campaign_id=eq.${id}`
+        },
+        () => {
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
   }, [id]);
 
   const handleFileChange = (e) => {
