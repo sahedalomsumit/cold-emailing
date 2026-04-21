@@ -131,7 +131,11 @@ npm run dev # Starts on port 5173
 3. Go to **Settings** > **Secrets and variables** > **Actions**.
 4. Create a **New repository secret**:
    - Name: `VITE_API_URL`
-   - Value: `https://your-render-service-url.onrender.com/api`
+     Value: `https://your-render-service-url.onrender.com/api`
+   - Name: `VITE_SUPABASE_URL`
+     Value: `your_supabase_url`
+   - Name: `VITE_SUPABASE_ANON_KEY`
+     Value: `your_supabase_anon_key`
 5. Push to `main` branch to trigger the deployment.
 
 ---
