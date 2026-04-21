@@ -22,6 +22,15 @@ body {
   min-height: 100vh;
 }
 
+button, 
+a, 
+[role="button"],
+input[type="button"],
+input[type="submit"],
+label {
+  cursor: pointer;
+}
+
 h1, h2, h3, h4, h5, h6 {
   @apply font-sans font-bold text-white tracking-tight;
 }
