@@ -28,10 +28,10 @@ const CampaignDetail = () => {
   const fetchData = async () => {
     try {
       const [cRes, lRes] = await Promise.all([
-        api.get(`/campaigns`),
+        api.get(`/campaigns/${id}`),
         api.get(`/campaigns/${id}/leads`)
       ]);
-      setCampaign(cRes.data.find(c => c.id === id));
+      setCampaign(cRes.data);
       setLeads(lRes.data);
     } catch (err) {
       console.error(err);

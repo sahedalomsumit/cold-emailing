@@ -72,10 +72,16 @@ app.get('/api/campaigns', authenticate, async (req, res) => {
     res.json(data);
 });
 
+app.get('/api/campaigns/:id', authenticate, async (req, res) => {
+    const { data, error } = await supabase.from('campaigns').select('*').eq('id', req.params.id).eq('user_id', req.user.id).single();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+});
+
 app.post('/api/campaigns', authenticate, async (req, res) => {
-    const { name, from_email, sender_name, follow_up_delays, templates } = req.body;
+    const { name, from_email, sender_name, follow_up_delays, max_follow_ups, templates } = req.body;
     const { data, error } = await supabase.from('campaigns').insert([{
-        name, from_email, sender_name, follow_up_delays, templates, user_id: req.user.id
+        name, from_email, sender_name, follow_up_delays, max_follow_ups, templates, user_id: req.user.id
     }]).select();
     if (error) return res.status(500).json({ error: error.message });
     res.json(data[0]);
@@ -127,7 +133,7 @@ app.post('/api/campaigns/:id/leads/import', authenticate, upload.single('file'),
     const results = [];
     fs.createReadStream(req.file.path)
         .pipe(csv())
-        .on('data', (data) => results.push({ ...data, campaign_id: req.params.id }))
+        .on('data', (data) => results.push({ ...data, campaign_id: req.params.id, user_id: req.user.id }))
         .on('end', async () => {
             const { data, error } = await supabase.from('leads').insert(results).select();
             fs.unlinkSync(req.file.path);
@@ -136,14 +142,35 @@ app.post('/api/campaigns/:id/leads/import', authenticate, upload.single('file'),
         });
 });
 
-app.put('/api/leads/:id/status', async (req, res) => {
+app.put('/api/leads/:id/status', authenticate, async (req, res) => {
     const { status } = req.body;
+    
+    // Security: Verify lead belongs to a campaign owned by this user
+    const { data: lead, error: leadError } = await supabase
+        .from('leads')
+        .select('*, campaigns!inner(user_id)')
+        .eq('id', req.params.id)
+        .eq('campaigns.user_id', req.user.id)
+        .single();
+
+    if (leadError || !lead) return res.status(403).json({ error: 'Access denied or lead not found' });
+
     const { data, error } = await supabase.from('leads').update({ status }).eq('id', req.params.id).select();
     if (error) return res.status(500).json({ error: error.message });
     res.json(data[0]);
 });
 
-app.delete('/api/leads/:id', async (req, res) => {
+app.delete('/api/leads/:id', authenticate, async (req, res) => {
+    // Security: Verify lead belongs to a campaign owned by this user
+    const { data: lead, error: leadError } = await supabase
+        .from('leads')
+        .select('*, campaigns!inner(user_id)')
+        .eq('id', req.params.id)
+        .eq('campaigns.user_id', req.user.id)
+        .single();
+
+    if (leadError || !lead) return res.status(403).json({ error: 'Access denied or lead not found' });
+
     const { error } = await supabase.from('leads').delete().eq('id', req.params.id);
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
