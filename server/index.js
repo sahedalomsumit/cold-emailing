@@ -58,8 +58,10 @@ const BREVO_HEADERS = {
 
 // --- HELPERS ---
 async function sendEmail({ to, name, company, subject, body }) {
-    const personalizedSubject = subject.replace(/{{name}}/g, name).replace(/{{company}}/g, company);
-    const personalizedBody = body.replace(/{{name}}/g, name).replace(/{{company}}/g, company);
+    const safeName = name || 'there';
+    const safeCompany = company || 'your company';
+    const personalizedSubject = subject.replace(/{{name}}/g, safeName).replace(/{{company}}/g, safeCompany);
+    const personalizedBody = body.replace(/{{name}}/g, safeName).replace(/{{company}}/g, safeCompany);
 
     try {
         const response = await axios.post(BREVO_API_URL, {
@@ -141,14 +143,36 @@ app.post('/api/campaigns/:id/leads/import', authenticate, upload.single('file'),
     if (!campaign) return res.status(403).json({ error: 'Access denied' });
 
     const results = [];
+    let skippedCount = 0;
+
     fs.createReadStream(req.file.path)
         .pipe(csv())
-        .on('data', (data) => results.push({ ...data, campaign_id: req.params.id, user_id: req.user.id }))
+        .on('data', (data) => {
+            // Validate mandatory fields: email and company
+            if (data.email && data.company) {
+                results.push({ 
+                    ...data, 
+                    campaign_id: req.params.id, 
+                    user_id: req.user.id,
+                    // Ensure numeric fields are correctly typed if present
+                    reviews: data.reviews ? parseInt(data.reviews) : 0,
+                    review_score: data.review_score ? parseFloat(data.review_score) : 0
+                });
+            } else {
+                skippedCount++;
+            }
+        })
         .on('end', async () => {
+            if (results.length === 0) {
+                if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+                return res.status(400).json({ error: 'No valid leads found. Ensure email and company columns are present and filled.' });
+            }
+
             const { data, error } = await supabase.from('leads').insert(results).select();
-            fs.unlinkSync(req.file.path);
+            if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+            
             if (error) return res.status(500).json({ error: error.message });
-            res.json({ count: data.length });
+            res.json({ count: data.length, skipped: skippedCount });
         });
 });
 

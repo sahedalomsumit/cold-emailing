@@ -168,9 +168,9 @@ const CampaignDetail = () => {
             <tr className="bg-card/80 border-b border-border">
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Lead</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Company</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Website/Phone</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Stats</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Status</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Follow-ups</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Last Contact</th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-right">Actions</th>
             </tr>
           </thead>
@@ -183,11 +183,21 @@ const CampaignDetail = () => {
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-300">{lead.company}</td>
                 <td className="px-6 py-4">
-                  <StatusBadge status={lead.status} />
+                  {lead.website && <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noreferrer" className="text-primary hover:underline block text-xs truncate max-w-[150px]">{lead.website}</a>}
+                  {lead.phone && <p className="text-xs text-gray-500">{lead.phone}</p>}
+                  {!lead.website && !lead.phone && <span className="text-gray-600">—</span>}
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-400">{lead.follow_ups}</td>
-                <td className="px-6 py-4 text-xs text-gray-500">
-                  {lead.last_contact ? new Date(lead.last_contact).toLocaleDateString() : '—'}
+                <td className="px-6 py-4">
+                  <div className="flex flex-col gap-1">
+                    <p className="text-xs text-gray-400"><span className="text-gray-500">F-Ups:</span> {lead.follow_ups}</p>
+                    {lead.reviews > 0 && <p className="text-[10px] text-amber-500/80">★ {lead.review_score} ({lead.reviews})</p>}
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <StatusBadge status={lead.status} />
+                  <p className="text-[10px] text-gray-600 mt-1">
+                    {lead.last_contact ? new Date(lead.last_contact).toLocaleDateString() : 'Never contacted'}
+                  </p>
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -223,7 +233,9 @@ const CampaignDetail = () => {
           <div className="glass w-full max-w-xl rounded-3xl p-8">
             <h3 className="text-2xl mb-4">Import Leads</h3>
             <p className="text-sm text-gray-400 mb-6 leading-relaxed">
-              Upload a CSV file with <span className="text-white font-mono">name, email, company</span> columns.
+              Upload a CSV file. <span className="text-white font-bold">email</span> and <span className="text-white font-bold">company</span> are mandatory.
+              <br />
+              <span className="text-xs text-gray-500">Optional columns: name, phone, website, reviews, review_score, instagram, facebook, twitter, linkedin.</span>
             </p>
             
             {!csvPreview ? (
