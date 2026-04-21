@@ -72,6 +72,7 @@ const Templates = () => {
     return text
       .replace(/{{name}}/g, '<span class="text-primary font-bold">Test Lead</span>')
       .replace(/{{company}}/g, '<span class="text-primary font-bold">Test Company</span>')
+      .replace(/{{email}}/g, '<span class="text-primary font-bold">test@example.com</span>')
       .replace(/{{phone}}/g, '<span class="text-primary font-bold">+1 234 567 890</span>')
       .replace(/{{website}}/g, '<span class="text-primary font-bold">example.com</span>')
       .replace(/{{reviews}}/g, '<span class="text-primary font-bold">120</span>')
@@ -151,6 +152,7 @@ const Templates = () => {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 opacity-80">
                 <span>{"{{name}}"}</span>
                 <span>{"{{company}}"}</span>
+                <span>{"{{email}}"}</span>
                 <span>{"{{phone}}"}</span>
                 <span>{"{{website}}"}</span>
                 <span>{"{{reviews}}"}</span>

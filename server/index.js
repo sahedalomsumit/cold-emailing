@@ -66,6 +66,7 @@ async function sendEmail({ to, lead, subject, body }) {
     let personalizedSubject = subject
         .replace(/{{name}}/g, safeName)
         .replace(/{{company}}/g, safeCompany)
+        .replace(/{{email}}/g, lead?.email || to)
         .replace(/{{phone}}/g, phone || '')
         .replace(/{{website}}/g, website || '')
         .replace(/{{reviews}}/g, reviews || '0')
@@ -78,6 +79,7 @@ async function sendEmail({ to, lead, subject, body }) {
     let personalizedBody = body
         .replace(/{{name}}/g, safeName)
         .replace(/{{company}}/g, safeCompany)
+        .replace(/{{email}}/g, lead?.email || to)
         .replace(/{{phone}}/g, phone || '')
         .replace(/{{website}}/g, website || '')
         .replace(/{{reviews}}/g, reviews || '0')

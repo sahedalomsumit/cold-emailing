@@ -4,7 +4,7 @@ import api from '../utils/api';
 import { supabase } from '../utils/supabase';
 import { 
   Upload, Trash2, ArrowLeft, CheckCircle2, XCircle, Mail, Clock, 
-  Instagram, Facebook, Twitter, Linkedin, Globe, Phone 
+  Camera, MessageCircle, Send, Briefcase, Globe, Phone 
 } from 'lucide-react';
 
 const StatusBadge = ({ status }) => {
@@ -201,26 +201,26 @@ const CampaignDetail = () => {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      {lead.instagram && (
-                        <a href={lead.instagram} target="_blank" rel="noreferrer" title="Instagram" className="text-gray-500 hover:text-pink-500 transition-colors">
-                          <Instagram size={14} />
-                        </a>
-                      )}
-                      {lead.facebook && (
-                        <a href={lead.facebook} target="_blank" rel="noreferrer" title="Facebook" className="text-gray-500 hover:text-blue-600 transition-colors">
-                          <Facebook size={14} />
-                        </a>
-                      )}
-                      {lead.twitter && (
-                        <a href={lead.twitter} target="_blank" rel="noreferrer" title="Twitter" className="text-gray-500 hover:text-sky-400 transition-colors">
-                          <Twitter size={14} />
-                        </a>
-                      )}
-                      {lead.linkedin && (
-                        <a href={lead.linkedin} target="_blank" rel="noreferrer" title="LinkedIn" className="text-gray-500 hover:text-blue-500 transition-colors">
-                          <Linkedin size={14} />
-                        </a>
-                      )}
+                        {lead.instagram && (
+                          <a href={lead.instagram} target="_blank" rel="noopener noreferrer" className="text-pink-500 hover:text-pink-600 transition-colors" title="Instagram">
+                            <Camera size={18} />
+                          </a>
+                        )}
+                        {lead.facebook && (
+                          <a href={lead.facebook} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 transition-colors" title="Facebook">
+                            <MessageCircle size={18} />
+                          </a>
+                        )}
+                        {lead.twitter && (
+                          <a href={lead.twitter} target="_blank" rel="noopener noreferrer" className="text-sky-500 hover:text-sky-600 transition-colors" title="Twitter/X">
+                            <Send size={18} />
+                          </a>
+                        )}
+                        {lead.linkedin && (
+                          <a href={lead.linkedin} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:text-blue-800 transition-colors" title="LinkedIn">
+                            <Briefcase size={18} />
+                          </a>
+                        )}
                       {!lead.instagram && !lead.facebook && !lead.twitter && !lead.linkedin && !lead.website && !lead.phone && (
                         <span className="text-gray-600 text-xs">—</span>
                       )}
