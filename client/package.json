@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://sahedalomsumit.github.io/outreachos",
+  "homepage": "https://sahedalomsumit.github.io/cold-emailing",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
