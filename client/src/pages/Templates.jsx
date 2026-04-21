@@ -72,6 +72,12 @@ const Templates = () => {
     return text
       .replace(/{{name}}/g, '<span class="text-primary font-bold">Test Lead</span>')
       .replace(/{{company}}/g, '<span class="text-primary font-bold">Test Company</span>')
+      .replace(/{{phone}}/g, '<span class="text-primary font-bold">+1 234 567 890</span>')
+      .replace(/{{website}}/g, '<span class="text-primary font-bold">example.com</span>')
+      .replace(/{{reviews}}/g, '<span class="text-primary font-bold">120</span>')
+      .replace(/{{review_score}}/g, '<span class="text-primary font-bold">4.8</span>')
+      .replace(/{{instagram}}/g, '<span class="text-primary font-bold">@test_insta</span>')
+      .replace(/{{linkedin}}/g, '<span class="text-primary font-bold">linkedin.com/in/test</span>')
       .replace(/\n/g, '<br/>');
   };
 
@@ -137,9 +143,23 @@ const Templates = () => {
                 onChange={e => setTemplates({...templates, [selectedType]: {...templates[selectedType], body: e.target.value}})}
               />
             </div>
-            <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-xl border border-primary/10 text-xs text-primary">
-              <Code size={14} />
-              <span>Available tags: {"{{name}}, {{company}}"}</span>
+            <div className="flex flex-col gap-2 p-3 bg-primary/5 rounded-xl border border-primary/10 text-[10px] text-primary">
+              <div className="flex items-center gap-2">
+                <Code size={12} />
+                <span className="font-bold uppercase">Available tags:</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 opacity-80">
+                <span>{"{{name}}"}</span>
+                <span>{"{{company}}"}</span>
+                <span>{"{{phone}}"}</span>
+                <span>{"{{website}}"}</span>
+                <span>{"{{reviews}}"}</span>
+                <span>{"{{review_score}}"}</span>
+                <span>{"{{instagram}}"}</span>
+                <span>{"{{facebook}}"}</span>
+                <span>{"{{twitter}}"}</span>
+                <span>{"{{linkedin}}"}</span>
+              </div>
             </div>
           </div>
         </div>

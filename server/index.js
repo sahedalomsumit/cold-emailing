@@ -57,11 +57,35 @@ const BREVO_HEADERS = {
 };
 
 // --- HELPERS ---
-async function sendEmail({ to, name, company, subject, body }) {
+async function sendEmail({ to, lead, subject, body }) {
+    const { name, company, phone, website, reviews, review_score, instagram, facebook, twitter, linkedin } = lead || {};
+    
     const safeName = name || 'there';
     const safeCompany = company || 'your company';
-    const personalizedSubject = subject.replace(/{{name}}/g, safeName).replace(/{{company}}/g, safeCompany);
-    const personalizedBody = body.replace(/{{name}}/g, safeName).replace(/{{company}}/g, safeCompany);
+    
+    let personalizedSubject = subject
+        .replace(/{{name}}/g, safeName)
+        .replace(/{{company}}/g, safeCompany)
+        .replace(/{{phone}}/g, phone || '')
+        .replace(/{{website}}/g, website || '')
+        .replace(/{{reviews}}/g, reviews || '0')
+        .replace(/{{review_score}}/g, review_score || '0')
+        .replace(/{{instagram}}/g, instagram || '')
+        .replace(/{{facebook}}/g, facebook || '')
+        .replace(/{{twitter}}/g, twitter || '')
+        .replace(/{{linkedin}}/g, linkedin || '');
+
+    let personalizedBody = body
+        .replace(/{{name}}/g, safeName)
+        .replace(/{{company}}/g, safeCompany)
+        .replace(/{{phone}}/g, phone || '')
+        .replace(/{{website}}/g, website || '')
+        .replace(/{{reviews}}/g, reviews || '0')
+        .replace(/{{review_score}}/g, review_score || '0')
+        .replace(/{{instagram}}/g, instagram || '')
+        .replace(/{{facebook}}/g, facebook || '')
+        .replace(/{{twitter}}/g, twitter || '')
+        .replace(/{{linkedin}}/g, linkedin || '');
 
     try {
         const response = await axios.post(BREVO_API_URL, {
@@ -266,7 +290,12 @@ app.get('/api/summary', authenticate, async (req, res) => {
 // --- TEST EMAIL ---
 app.post('/api/send-test', authenticate, async (req, res) => {
     const { email, name, company, subject, body } = req.body;
-    const result = await sendEmail({ to: email, name, company, subject, body });
+    const result = await sendEmail({ 
+        to: email, 
+        lead: { name, company }, 
+        subject, 
+        body 
+    });
     if (result.success) {
         res.json({ success: true });
     } else {
@@ -332,8 +361,7 @@ cron.schedule('0 9 * * *', async () => {
 
                 const result = await sendEmail({
                     to: lead.email,
-                    name: lead.name,
-                    company: lead.company,
+                    lead: lead,
                     subject: template.subject,
                     body: template.body
                 });
