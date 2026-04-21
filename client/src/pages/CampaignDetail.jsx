@@ -93,7 +93,8 @@ const CampaignDetail = () => {
       setCsvPreview(null);
       fetchData();
     } catch (err) {
-      alert('Import failed. Make sure CSV has name, email, company columns.');
+      const msg = err.response?.data?.error || 'Import failed. Check your CSV format.';
+      alert(msg);
     } finally {
       setImporting(false);
     }

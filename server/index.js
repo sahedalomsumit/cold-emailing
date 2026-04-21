@@ -170,17 +170,25 @@ app.post('/api/campaigns/:id/leads/import', authenticate, upload.single('file'),
     let skippedCount = 0;
 
     fs.createReadStream(req.file.path)
-        .pipe(csv())
+        .pipe(csv({
+            mapHeaders: ({ header }) => header.toLowerCase().trim()
+        }))
         .on('data', (data) => {
+            // Clean values (trim whitespace)
+            const cleanData = {};
+            Object.keys(data).forEach(key => {
+                cleanData[key] = data[key] ? data[key].trim() : '';
+            });
+
             // Validate mandatory fields: email and company
-            if (data.email && data.company) {
+            if (cleanData.email && cleanData.company) {
                 results.push({ 
-                    ...data, 
+                    ...cleanData, 
                     campaign_id: req.params.id, 
                     user_id: req.user.id,
-                    // Ensure numeric fields are correctly typed if present
-                    reviews: data.reviews ? parseInt(data.reviews) : 0,
-                    review_score: data.review_score ? parseFloat(data.review_score) : 0
+                    // Ensure numeric fields are correctly typed
+                    reviews: cleanData.reviews ? (parseInt(cleanData.reviews) || 0) : 0,
+                    review_score: cleanData.review_score ? (parseFloat(cleanData.review_score) || 0) : 0
                 });
             } else {
                 skippedCount++;
@@ -189,13 +197,16 @@ app.post('/api/campaigns/:id/leads/import', authenticate, upload.single('file'),
         .on('end', async () => {
             if (results.length === 0) {
                 if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-                return res.status(400).json({ error: 'No valid leads found. Ensure email and company columns are present and filled.' });
+                return res.status(400).json({ error: 'No valid leads found. Check that your CSV has "email" and "company" columns and they are not empty.' });
             }
 
             const { data, error } = await supabase.from('leads').insert(results).select();
             if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
             
-            if (error) return res.status(500).json({ error: error.message });
+            if (error) {
+                console.error('Supabase Insert Error:', error);
+                return res.status(500).json({ error: `Database Error: ${error.message}` });
+            }
             res.json({ count: data.length, skipped: skippedCount });
         });
 });
