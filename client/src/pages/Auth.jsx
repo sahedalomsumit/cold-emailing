@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Navigate } from 'react-router-dom';
-import { Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Loader2, Megaphone } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -44,12 +45,15 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <div className="w-full max-w-md animate-in fade-in zoom-in duration-500">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 text-primary mb-4 shadow-[0_0_20px_rgba(59,130,246,0.2)]">
-            <Lock size={32} />
-          </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">
+          <Link to="/" className="inline-flex items-center gap-3 mb-8 hover:opacity-80 transition-opacity">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(59,130,246,0.4)]">
+              <Megaphone size={22} className="text-white" />
+            </div>
+            <h1 className="text-2xl font-sans font-extrabold tracking-tighter text-white">Outreach<span className="text-primary">OS</span></h1>
+          </Link>
+          <h2 className="text-3xl font-extrabold text-white tracking-tight">
             {isLogin ? 'Welcome Back' : 'Create Account'}
-          </h1>
+          </h2>
           <p className="text-gray-400 mt-2">
             {isLogin ? 'Sign in to manage your outreach' : 'Start your outreach journey today'}
           </p>

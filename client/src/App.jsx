@@ -1,6 +1,6 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Megaphone, FileText, Activity, LogOut } from 'lucide-react';
+import { LayoutDashboard, Megaphone, FileText, Activity, LogOut, Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
@@ -35,12 +35,12 @@ const Layout = ({ children }) => {
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
       <aside className="w-64 border-r border-border p-6 flex flex-col gap-8 sticky top-0 h-screen">
-        <div className="flex items-center gap-3 px-2">
+        <Link to="/" className="flex items-center gap-3 px-2 hover:opacity-80 transition-opacity">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.5)]">
             <Megaphone size={18} className="text-white" />
           </div>
           <h1 className="text-xl font-sans font-extrabold tracking-tighter text-white">Outreach<span className="text-primary">OS</span></h1>
-        </div>
+        </Link>
 
         <nav className="flex flex-col gap-2">
           <SidebarLink to="/" icon={LayoutDashboard}>Dashboard</SidebarLink>
@@ -79,7 +79,14 @@ const Layout = ({ children }) => {
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="animate-spin text-primary" size={40} />
+      </div>
+    );
+  }
+  
   if (!user) return <Navigate to="/auth" />;
   
   return <Layout>{children}</Layout>;
