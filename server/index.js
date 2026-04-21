@@ -31,7 +31,7 @@ app.use(express.json());
 
 const upload = multer({ dest: 'uploads/' });
 
-// Auth Middleware
+// Auth & Admin Middleware
 const authenticate = async (req, res, next) => {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return res.status(401).json({ error: 'No token provided' });
@@ -40,6 +40,14 @@ const authenticate = async (req, res, next) => {
     if (error || !user) return res.status(401).json({ error: 'Invalid token' });
 
     req.user = user;
+    next();
+};
+
+const checkAdmin = (req, res, next) => {
+    const ADMIN_EMAIL = 'sahedalomsumit@gmail.com';
+    if (req.user?.email !== ADMIN_EMAIL) {
+        return res.status(403).json({ error: 'Access denied. Only the administrator can perform this action.' });
+    }
     next();
 };
 
@@ -116,7 +124,7 @@ app.get('/api/campaigns/:id', authenticate, async (req, res) => {
     res.json(data);
 });
 
-app.post('/api/campaigns', authenticate, async (req, res) => {
+app.post('/api/campaigns', authenticate, checkAdmin, async (req, res) => {
     const { name, from_email, sender_name, follow_up_delays, max_follow_ups, templates } = req.body;
     const { data, error } = await supabase.from('campaigns').insert([{
         name, from_email, sender_name, follow_up_delays, max_follow_ups, templates, user_id: req.user.id
@@ -125,7 +133,7 @@ app.post('/api/campaigns', authenticate, async (req, res) => {
     res.json(data[0]);
 });
 
-app.put('/api/campaigns/:id', authenticate, async (req, res) => {
+app.put('/api/campaigns/:id', authenticate, checkAdmin, async (req, res) => {
     const { name, from_email, sender_name, follow_up_delays, templates } = req.body;
     const { data, error } = await supabase.from('campaigns').update({
         name, from_email, sender_name, follow_up_delays, templates
@@ -134,19 +142,19 @@ app.put('/api/campaigns/:id', authenticate, async (req, res) => {
     res.json(data[0]);
 });
 
-app.delete('/api/campaigns/:id', authenticate, async (req, res) => {
+app.delete('/api/campaigns/:id', authenticate, checkAdmin, async (req, res) => {
     const { error } = await supabase.from('campaigns').delete().eq('id', req.params.id).eq('user_id', req.user.id);
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
 });
 
-app.post('/api/campaigns/:id/activate', authenticate, async (req, res) => {
+app.post('/api/campaigns/:id/activate', authenticate, checkAdmin, async (req, res) => {
     const { data, error } = await supabase.from('campaigns').update({ active: true }).eq('id', req.params.id).eq('user_id', req.user.id).select();
     if (error) return res.status(500).json({ error: error.message });
     res.json(data[0]);
 });
 
-app.post('/api/campaigns/:id/pause', authenticate, async (req, res) => {
+app.post('/api/campaigns/:id/pause', authenticate, checkAdmin, async (req, res) => {
     const { data, error } = await supabase.from('campaigns').update({ active: false }).eq('id', req.params.id).eq('user_id', req.user.id).select();
     if (error) return res.status(500).json({ error: error.message });
     res.json(data[0]);
@@ -163,7 +171,7 @@ app.get('/api/campaigns/:id/leads', authenticate, async (req, res) => {
     res.json(data);
 });
 
-app.post('/api/campaigns/:id/leads/import', authenticate, upload.single('file'), async (req, res) => {
+app.post('/api/campaigns/:id/leads/import', authenticate, checkAdmin, upload.single('file'), async (req, res) => {
     // Verify campaign ownership
     const { data: campaign } = await supabase.from('campaigns').select('id').eq('id', req.params.id).eq('user_id', req.user.id).single();
     if (!campaign) return res.status(403).json({ error: 'Access denied' });
@@ -219,7 +227,7 @@ app.post('/api/campaigns/:id/leads/import', authenticate, upload.single('file'),
         });
 });
 
-app.put('/api/leads/:id/status', authenticate, async (req, res) => {
+app.put('/api/leads/:id/status', authenticate, checkAdmin, async (req, res) => {
     const { status } = req.body;
     
     // Security: Verify lead belongs to a campaign owned by this user
@@ -237,7 +245,7 @@ app.put('/api/leads/:id/status', authenticate, async (req, res) => {
     res.json(data[0]);
 });
 
-app.delete('/api/leads/:id', authenticate, async (req, res) => {
+app.delete('/api/leads/:id', authenticate, checkAdmin, async (req, res) => {
     // Security: Verify lead belongs to a campaign owned by this user
     const { data: lead, error: leadError } = await supabase
         .from('leads')
@@ -284,30 +292,43 @@ app.get('/api/summary', authenticate, async (req, res) => {
             .eq('user_id', req.user.id)
             .eq('status', 'replied');
 
-        const { count: dailyCount } = await supabase
+        // Filter dailyCount by user_id through a join or by checking campaigns
+        const { data: userLogs, error: logError } = await supabase
             .from('email_logs')
-            .select('*', { count: 'exact', head: true })
+            .select('id, campaigns!inner(user_id)')
+            .eq('campaigns.user_id', req.user.id)
             .eq('status', 'sent')
             .gte('sent_at', new Date(new Date().setHours(0,0,0,0)).toISOString());
 
-        // Note: dailyCount should ideally be filtered by user, but email_logs 
-        // doesn't have user_id directly. We'd need a join or add user_id to logs.
-        // For now, this is global which matches the Brevo limit concept.
+        const dailyCount = userLogs ? userLogs.length : 0;
+
+        // Calculate some basic trends (e.g., leads added today)
+        const { count: leadsToday } = await supabase
+            .from('leads')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', req.user.id)
+            .gte('created_at', new Date(new Date().setHours(0,0,0,0)).toISOString());
 
         res.json({
             totalLeads: totalLeads || 0,
             contacted: contacted || 0,
             replied: replied || 0,
             replyRate: contacted > 0 ? ((replied / contacted) * 100).toFixed(1) : 0,
-            dailyCount: dailyCount || 0
+            dailyCount: dailyCount || 0,
+            trends: {
+                leads: leadsToday > 0 ? `+${leadsToday} today` : '0 today',
+                contacted: 'Active', // Placeholder or real logic
+                replied: replied > 0 ? `${((replied/contacted)*100).toFixed(0)}% rate` : '0%'
+            }
         });
     } catch (err) {
+        console.error('Summary Error:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
 // --- TEST EMAIL ---
-app.post('/api/send-test', authenticate, async (req, res) => {
+app.post('/api/send-test', authenticate, checkAdmin, async (req, res) => {
     const { email, name, company, subject, body } = req.body;
     const result = await sendEmail({ 
         to: email, 

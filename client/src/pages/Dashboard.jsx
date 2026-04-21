@@ -8,6 +8,7 @@ import {
   TrendingUp,
   AlertCircle,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 const StatCard = ({ title, value, icon: Icon, trend, color }) => (
   <div className="glass p-6 rounded-2xl relative overflow-hidden group">
@@ -30,6 +31,7 @@ const StatCard = ({ title, value, icon: Icon, trend, color }) => (
 );
 
 const Dashboard = () => {
+  const { isAdmin } = useAuth();
   const [stats, setStats] = useState({
     totalLeads: 0,
     contacted: 0,
@@ -99,21 +101,21 @@ const Dashboard = () => {
           value={stats.totalLeads.toLocaleString()}
           icon={Users}
           color="primary"
-          trend="+12%"
+          trend={stats.trends?.leads}
         />
         <StatCard
           title="Contacted"
           value={stats.contacted.toLocaleString()}
           icon={Mail}
           color="blue-400"
-          trend="+18%"
+          trend={stats.trends?.contacted}
         />
         <StatCard
           title="Replied"
           value={stats.replied.toLocaleString()}
           icon={MessageSquare}
           color="green-400"
-          trend="+5%"
+          trend={stats.trends?.replied}
         />
         <StatCard
           title="Reply Rate"
@@ -170,17 +172,19 @@ const Dashboard = () => {
         </div>
 
         <div className="space-y-6">
-          <div className="glass rounded-2xl p-6">
-            <h3 className="text-lg mb-4">Quick Actions</h3>
-            <div className="grid grid-cols-1 gap-3">
-              <button className="btn btn-secondary text-sm flex items-center justify-center gap-2">
-                <Users size={16} /> Import Leads
-              </button>
-              <button className="btn btn-primary text-sm flex items-center justify-center gap-2">
-                <Mail size={16} /> Send Test Email
-              </button>
+          {isAdmin && (
+            <div className="glass rounded-2xl p-6">
+              <h3 className="text-lg mb-4">Quick Actions</h3>
+              <div className="grid grid-cols-1 gap-3">
+                <button className="btn btn-secondary text-sm flex items-center justify-center gap-2">
+                  <Users size={16} /> Import Leads
+                </button>
+                <button className="btn btn-primary text-sm flex items-center justify-center gap-2">
+                  <Mail size={16} /> Send Test Email
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="bg-linear-to-br from-primary/20 to-purple-600/20 border border-primary/20 rounded-2xl p-6">
             <h3 className="text-white font-sans font-bold mb-2">Pro Tip</h3>

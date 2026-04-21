@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import api from '../utils/api';
 import { Save, Eye, Send, Code, AlertCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Templates = () => {
+  const { isAdmin } = useAuth();
   const [campaigns, setCampaigns] = useState([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const [selectedType, setSelectedType] = useState('initial');
@@ -97,13 +99,15 @@ const Templates = () => {
           >
             {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <button 
-            disabled={saving}
-            onClick={handleSave}
-            className="btn btn-primary flex items-center gap-2"
-          >
-            <Save size={18} /> {saving ? 'Saving...' : 'Save Templates'}
-          </button>
+          {isAdmin && (
+            <button 
+              disabled={saving || !selectedCampaignId}
+              onClick={handleSave}
+              className="btn btn-primary flex items-center gap-2"
+            >
+              <Save size={18} /> {saving ? 'Saving...' : 'Save Templates'}
+            </button>
+          )}
         </div>
       </header>
 
@@ -200,7 +204,9 @@ const Templates = () => {
                 value={testEmail}
                 onChange={e => setTestEmail(e.target.value)}
               />
-              <button onClick={handleSendTest} className="btn btn-secondary px-6">Send</button>
+              {isAdmin && (
+                <button onClick={handleSendTest} className="btn btn-secondary px-6">Send</button>
+              )}
             </div>
           </div>
         </div>

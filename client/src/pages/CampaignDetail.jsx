@@ -7,6 +7,8 @@ import {
   Camera, MessageCircle, Send, Briefcase, Globe, Phone 
 } from 'lucide-react';
 
+import { useAuth } from '../context/AuthContext';
+
 const StatusBadge = ({ status }) => {
   const styles = {
     pending: 'bg-gray-500/10 text-gray-400',
@@ -22,6 +24,7 @@ const StatusBadge = ({ status }) => {
 
 const CampaignDetail = () => {
   const { id } = useParams();
+  const { isAdmin } = useAuth();
   const [campaign, setCampaign] = useState(null);
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -137,9 +140,11 @@ const CampaignDetail = () => {
           </div>
         </div>
         <div className="flex gap-3">
-          <button onClick={() => setImporting(true)} className="btn btn-secondary flex items-center gap-2">
-            <Upload size={18} /> Import CSV
-          </button>
+          {isAdmin && (
+            <button onClick={() => setImporting(true)} className="btn btn-secondary flex items-center gap-2">
+              <Upload size={18} /> Import CSV
+            </button>
+          )}
         </div>
       </header>
 
@@ -240,21 +245,24 @@ const CampaignDetail = () => {
                   </p>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={() => updateStatus(lead.id, 'replied')}
-                      title="Mark as Replied"
-                      className="p-1.5 rounded-lg text-green-500 hover:bg-green-500/10 transition-colors"
-                    >
-                      <CheckCircle2 size={18} />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteLead(lead.id)}
-                      className="p-1.5 rounded-lg text-gray-500 hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => updateStatus(lead.id, 'replied')}
+                        title="Mark as Replied"
+                        className="p-1.5 rounded-lg text-green-500 hover:bg-green-500/10 transition-colors"
+                      >
+                        <CheckCircle2 size={18} />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteLead(lead.id)}
+                        title="Delete Lead"
+                        className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}

@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../utils/api";
 import { supabase } from "../utils/supabase";
+import { useAuth } from "../context/AuthContext";
 import {
-  Plus,
   Play,
   Pause,
   Edit2,
@@ -16,6 +16,7 @@ import {
 
 const CampaignCard = ({ campaign, onToggle, onDelete }) => {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
 
   return (
     <div className="glass p-6 rounded-2xl group hover:border-primary/30 transition-all duration-300">
@@ -55,23 +56,25 @@ const CampaignCard = ({ campaign, onToggle, onDelete }) => {
       </div>
 
       <div className="flex items-center justify-between pt-4 border-t border-border">
-        <div className="flex gap-2">
-          <button
-            onClick={() => onToggle(campaign)}
-            className={`p-2 rounded-lg border border-border hover:border-primary transition-colors ${campaign.active ? "text-amber-500" : "text-green-500"}`}
-          >
-            {campaign.active ? <Pause size={18} /> : <Play size={18} />}
-          </button>
-          <button className="p-2 rounded-lg border border-border hover:border-primary text-gray-400 hover:text-white transition-colors">
-            <Edit2 size={18} />
-          </button>
-          <button
-            onClick={() => onDelete(campaign.id)}
-            className="p-2 rounded-lg border border-border hover:border-red-500 text-gray-400 hover:text-red-500 transition-colors"
-          >
-            <Trash2 size={18} />
-          </button>
-        </div>
+        {isAdmin && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => onToggle(campaign)}
+              className={`p-2 rounded-lg border border-border hover:border-primary transition-colors ${campaign.active ? "text-amber-500" : "text-green-500"}`}
+            >
+              {campaign.active ? <Pause size={18} /> : <Play size={18} />}
+            </button>
+            <button className="p-2 rounded-lg border border-border hover:border-primary text-gray-400 hover:text-white transition-colors">
+              <Edit2 size={18} />
+            </button>
+            <button
+              onClick={() => onDelete(campaign.id)}
+              className="p-2 rounded-lg border border-border hover:border-red-500 text-gray-400 hover:text-red-500 transition-colors"
+            >
+              <Trash2 size={18} />
+            </button>
+          </div>
+        )}
         <button
           onClick={() => navigate(`/campaigns/${campaign.id}`)}
           className="btn btn-primary py-2 px-4 text-xs flex items-center gap-2"
@@ -84,6 +87,7 @@ const CampaignCard = ({ campaign, onToggle, onDelete }) => {
 };
 
 const Campaigns = () => {
+  const { isAdmin } = useAuth();
   const [campaigns, setCampaigns] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [newCampaign, setNewCampaign] = useState({
@@ -188,12 +192,14 @@ const Campaigns = () => {
             Manage and automate your outreach sequences.
           </p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="btn btn-primary flex items-center gap-2"
-        >
-          <Plus size={20} /> Create Campaign
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setShowModal(true)}
+            className="btn btn-primary flex items-center gap-2"
+          >
+            <Plus size={20} /> Create Campaign
+          </button>
+        )}
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
