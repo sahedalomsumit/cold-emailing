@@ -1,0 +1,37 @@
+# Dependency directories
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+client/.env
+server/.env
+
+# Build outputs
+dist/
+client/dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+Thumbs.db
+
+# Server specific
+server/uploads/*
+!server/uploads/.gitkeep

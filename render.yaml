@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: outreachos-server
+    runtime: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: CLIENT_URL
+        sync: false
+      - key: PORT
+        value: 4000

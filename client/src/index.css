@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --color-background: #0a0c10;
+  --color-card: #11141a;
+  --color-border: #1f242c;
+  --color-primary: #3b82f6;
+  
+  --font-mono: "DM Mono", monospace;
+  --font-sans: "Syne", sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-background text-gray-200 font-mono antialiased;
+  margin: 0;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  @apply font-sans font-bold text-white tracking-tight;
+}
+
+.glass {
+  @apply bg-card/50 backdrop-blur-md border border-border;
+}
+
+.btn {
+  @apply px-4 py-2 rounded-lg font-sans font-semibold transition-all duration-200 active:scale-95 disabled:opacity-50;
+}
+
+.btn-primary {
+  @apply bg-primary text-white hover:bg-primary/90 shadow-[0_0_20px_rgba(59,130,246,0.3)];
+}
+
+.btn-secondary {
+  @apply bg-gray-800 text-gray-200 hover:bg-gray-700 border border-border;
+}
+
+.input {
+  @apply bg-card border border-border rounded-lg px-4 py-2 outline-none focus:border-primary/50 transition-colors font-mono text-sm;
+}
+
+.badge {
+  @apply px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-background;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-border rounded-full hover:bg-gray-700 transition-colors;
+}
