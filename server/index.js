@@ -182,13 +182,19 @@ app.post('/api/campaigns/:id/leads/import', authenticate, upload.single('file'),
 
             // Validate mandatory fields: email and company
             if (cleanData.email && cleanData.company) {
-                results.push({ 
-                    ...cleanData, 
-                    campaign_id: req.params.id, 
-                    user_id: req.user.id,
-                    // Ensure numeric fields are correctly typed
-                    reviews: cleanData.reviews ? (parseInt(cleanData.reviews) || 0) : 0,
-                    review_score: cleanData.review_score ? (parseFloat(cleanData.review_score) || 0) : 0
+                // Handle multiple emails separated by commas
+                const emails = cleanData.email.split(',').map(e => e.trim()).filter(e => e !== '');
+                
+                emails.forEach(email => {
+                    results.push({ 
+                        ...cleanData,
+                        email: email, // Set individual email
+                        campaign_id: req.params.id, 
+                        user_id: req.user.id,
+                        // Ensure numeric fields are correctly typed
+                        reviews: cleanData.reviews ? (parseInt(cleanData.reviews) || 0) : 0,
+                        review_score: cleanData.review_score ? (parseFloat(cleanData.review_score) || 0) : 0
+                    });
                 });
             } else {
                 skippedCount++;
