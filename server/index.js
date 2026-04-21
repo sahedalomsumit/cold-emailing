@@ -21,6 +21,18 @@ app.use(express.json());
 
 const upload = multer({ dest: 'uploads/' });
 
+// Auth Middleware
+const authenticate = async (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No token provided' });
+
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return res.status(401).json({ error: 'Invalid token' });
+
+    req.user = user;
+    next();
+};
+
 // --- ROOT ROUTE ---
 app.get('/', (req, res) => {
     res.send('OutreachOS API is running...');
@@ -54,56 +66,64 @@ async function sendEmail({ to, name, company, subject, body }) {
 }
 
 // --- CAMPAIGN ROUTES ---
-app.get('/api/campaigns', async (req, res) => {
-    const { data, error } = await supabase.from('campaigns').select('*').order('created_at', { ascending: false });
+app.get('/api/campaigns', authenticate, async (req, res) => {
+    const { data, error } = await supabase.from('campaigns').select('*').eq('user_id', req.user.id).order('created_at', { ascending: false });
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
 });
 
-app.post('/api/campaigns', async (req, res) => {
+app.post('/api/campaigns', authenticate, async (req, res) => {
     const { name, from_email, sender_name, follow_up_delays, templates } = req.body;
     const { data, error } = await supabase.from('campaigns').insert([{
-        name, from_email, sender_name, follow_up_delays, templates
+        name, from_email, sender_name, follow_up_delays, templates, user_id: req.user.id
     }]).select();
     if (error) return res.status(500).json({ error: error.message });
     res.json(data[0]);
 });
 
-app.put('/api/campaigns/:id', async (req, res) => {
+app.put('/api/campaigns/:id', authenticate, async (req, res) => {
     const { name, from_email, sender_name, follow_up_delays, templates } = req.body;
     const { data, error } = await supabase.from('campaigns').update({
         name, from_email, sender_name, follow_up_delays, templates
-    }).eq('id', req.params.id).select();
+    }).eq('id', req.params.id).eq('user_id', req.user.id).select();
     if (error) return res.status(500).json({ error: error.message });
     res.json(data[0]);
 });
 
-app.delete('/api/campaigns/:id', async (req, res) => {
-    const { error } = await supabase.from('campaigns').delete().eq('id', req.params.id);
+app.delete('/api/campaigns/:id', authenticate, async (req, res) => {
+    const { error } = await supabase.from('campaigns').delete().eq('id', req.params.id).eq('user_id', req.user.id);
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
 });
 
-app.post('/api/campaigns/:id/activate', async (req, res) => {
-    const { data, error } = await supabase.from('campaigns').update({ active: true }).eq('id', req.params.id).select();
+app.post('/api/campaigns/:id/activate', authenticate, async (req, res) => {
+    const { data, error } = await supabase.from('campaigns').update({ active: true }).eq('id', req.params.id).eq('user_id', req.user.id).select();
     if (error) return res.status(500).json({ error: error.message });
     res.json(data[0]);
 });
 
-app.post('/api/campaigns/:id/pause', async (req, res) => {
-    const { data, error } = await supabase.from('campaigns').update({ active: false }).eq('id', req.params.id).select();
+app.post('/api/campaigns/:id/pause', authenticate, async (req, res) => {
+    const { data, error } = await supabase.from('campaigns').update({ active: false }).eq('id', req.params.id).eq('user_id', req.user.id).select();
     if (error) return res.status(500).json({ error: error.message });
     res.json(data[0]);
 });
 
 // --- LEAD ROUTES ---
-app.get('/api/campaigns/:id/leads', async (req, res) => {
+app.get('/api/campaigns/:id/leads', authenticate, async (req, res) => {
+    // Verify campaign ownership first
+    const { data: campaign } = await supabase.from('campaigns').select('id').eq('id', req.params.id).eq('user_id', req.user.id).single();
+    if (!campaign) return res.status(403).json({ error: 'Access denied' });
+
     const { data, error } = await supabase.from('leads').select('*').eq('campaign_id', req.params.id).order('created_at', { ascending: false });
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
 });
 
-app.post('/api/campaigns/:id/leads/import', upload.single('file'), async (req, res) => {
+app.post('/api/campaigns/:id/leads/import', authenticate, upload.single('file'), async (req, res) => {
+    // Verify campaign ownership
+    const { data: campaign } = await supabase.from('campaigns').select('id').eq('id', req.params.id).eq('user_id', req.user.id).single();
+    if (!campaign) return res.status(403).json({ error: 'Access denied' });
+
     const results = [];
     fs.createReadStream(req.file.path)
         .pipe(csv())
@@ -130,14 +150,18 @@ app.delete('/api/leads/:id', async (req, res) => {
 });
 
 // --- LOGS ---
-app.get('/api/logs', async (req, res) => {
-    const { data, error } = await supabase.from('email_logs').select('*, campaigns(name), leads(email, name)').order('sent_at', { ascending: false });
+app.get('/api/logs', authenticate, async (req, res) => {
+    const { data, error } = await supabase.from('email_logs')
+        .select('*, campaigns!inner(name, user_id), leads(email, name)')
+        .eq('campaigns.user_id', req.user.id)
+        .order('sent_at', { ascending: false });
+    
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
 });
 
 // --- TEST EMAIL ---
-app.post('/api/send-test', async (req, res) => {
+app.post('/api/send-test', authenticate, async (req, res) => {
     const { email, name, company, subject, body } = req.body;
     const result = await sendEmail({ to: email, name, company, subject, body });
     if (result.success) {

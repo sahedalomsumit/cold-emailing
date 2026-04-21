@@ -1,6 +1,8 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Megaphone, FileText, Activity, Settings } from 'lucide-react';
+import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { LayoutDashboard, Megaphone, FileText, Activity, LogOut } from 'lucide-react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
 import Campaigns from './pages/Campaigns';
 import CampaignDetail from './pages/CampaignDetail';
@@ -27,6 +29,8 @@ const SidebarLink = ({ to, icon: Icon, children }) => {
 };
 
 const Layout = ({ children }) => {
+  const { logout, user } = useAuth();
+
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
@@ -45,15 +49,22 @@ const Layout = ({ children }) => {
           <SidebarLink to="/logs" icon={Activity}>Activity Logs</SidebarLink>
         </nav>
 
-        <div className="mt-auto p-4 glass rounded-2xl">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-[10px] uppercase tracking-widest font-bold text-gray-500">System Status</span>
+        <div className="mt-auto space-y-4">
+          <div className="p-4 glass rounded-2xl">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-[10px] uppercase tracking-widest font-bold text-gray-500">System Status</span>
+            </div>
+            <p className="text-xs text-gray-400 leading-relaxed">Logged in as: <br/><span className="text-white font-bold truncate block">{user?.email}</span></p>
           </div>
-          <p className="text-xs text-gray-400 leading-relaxed">Daily Limit: <span className="text-white font-bold">250</span> emails</p>
-          <div className="mt-2 h-1 w-full bg-border rounded-full overflow-hidden">
-            <div className="h-full bg-primary w-1/3 rounded-full" />
-          </div>
+
+          <button 
+            onClick={() => logout()}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:bg-red-500/10 hover:text-red-500 transition-all duration-200 font-sans font-semibold text-sm"
+          >
+            <LogOut size={20} />
+            Logout
+          </button>
         </div>
       </aside>
 
@@ -65,19 +76,30 @@ const Layout = ({ children }) => {
   );
 };
 
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) return null;
+  if (!user) return <Navigate to="/auth" />;
+  
+  return <Layout>{children}</Layout>;
+};
+
 function App() {
   return (
-    <Router>
-      <Layout>
+    <AuthProvider>
+      <Router>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/campaigns" element={<Campaigns />} />
-          <Route path="/campaigns/:id" element={<CampaignDetail />} />
-          <Route path="/templates" element={<Templates />} />
-          <Route path="/logs" element={<Logs />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/campaigns" element={<ProtectedRoute><Campaigns /></ProtectedRoute>} />
+          <Route path="/campaigns/:id" element={<ProtectedRoute><CampaignDetail /></ProtectedRoute>} />
+          <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
+          <Route path="/logs" element={<ProtectedRoute><Logs /></ProtectedRoute>} />
+          <Route path="*" element={<Navigate to="/" />} />
         </Routes>
-      </Layout>
-    </Router>
+      </Router>
+    </AuthProvider>
   );
 }
 

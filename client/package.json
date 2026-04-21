@@ -13,6 +13,7 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.104.0",
     "@tailwindcss/vite": "^4.2.4",
     "axios": "^1.15.1",
     "clsx": "^2.1.1",
