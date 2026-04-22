@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, ArrowRight, Loader2, Megaphone } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -9,10 +9,13 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { login, signup, user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
 
-  if (!authLoading && user) {
-    return <Navigate to="/" />;
-  }
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/');
+    }
+  }, [user, authLoading, navigate]);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -27,8 +30,9 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        const { error } = await login(formData.email, formData.password);
+        const { error, data } = await login(formData.email, formData.password);
         if (error) throw error;
+        if (data?.user) navigate('/');
       } else {
         const { error } = await signup(formData.email, formData.password, formData.fullName);
         if (error) throw error;

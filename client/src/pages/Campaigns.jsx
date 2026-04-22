@@ -186,9 +186,9 @@ const Campaigns = () => {
 
   return (
     <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-700">
-      <header className="flex justify-between items-center">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-extrabold text-white mb-2">Campaigns</h2>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-2">Campaigns</h2>
           <p className="text-gray-400 text-sm">
             Manage and automate your outreach sequences.
           </p>
@@ -196,7 +196,7 @@ const Campaigns = () => {
         {isAdmin && (
           <button
             onClick={() => setShowModal(true)}
-            className="btn btn-primary flex items-center gap-2"
+            className="btn btn-primary flex items-center gap-2 w-full md:w-auto justify-center"
           >
             <Plus size={20} /> Create Campaign
           </button>
@@ -224,12 +224,12 @@ const Campaigns = () => {
 
       {showModal && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="glass w-full max-w-2xl rounded-3xl p-8 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-2xl mb-6">Create New Campaign</h3>
+          <div className="glass w-full max-w-2xl rounded-3xl p-6 md:p-8 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl md:text-2xl mb-6">Create New Campaign</h3>
             <form onSubmit={handleCreate} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                     Campaign Name
                   </label>
                   <input
@@ -243,7 +243,7 @@ const Campaigns = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                     Sender Name
                   </label>
                   <input
@@ -260,7 +260,7 @@ const Campaigns = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                     From Email
                   </label>
                   <input
@@ -278,7 +278,7 @@ const Campaigns = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                     Max Follow-ups
                   </label>
                   <input
@@ -295,15 +295,15 @@ const Campaigns = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-6 border-t border-border">
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t border-border">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="btn btn-secondary"
+                  className="btn btn-secondary w-full sm:w-auto"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="btn btn-primary w-full sm:w-auto">
                   Create Campaign
                 </button>
               </div>

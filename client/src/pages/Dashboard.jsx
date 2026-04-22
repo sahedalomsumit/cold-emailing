@@ -70,16 +70,16 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
-      <header className="flex justify-between items-end">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h2 className="text-3xl font-extrabold text-white mb-2">
+          <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-2">
             Performance Overview
           </h2>
           <p className="text-gray-400 text-sm">
             Real-time insights across all outreach campaigns.
           </p>
         </div>
-        <div className="glass px-4 py-2 rounded-xl flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-gray-400">
+        <div className="glass px-4 py-2 rounded-xl flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">
           <div className="w-2 h-2 rounded-full bg-primary" />
           Today's Activity
         </div>

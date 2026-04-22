@@ -86,16 +86,16 @@ const Templates = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-700">
-      <header className="flex justify-between items-end">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h2 className="text-3xl font-extrabold text-white mb-2">Email Templates</h2>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-white mb-2">Email Templates</h2>
           <p className="text-gray-400 text-sm">Design and preview your outreach sequences.</p>
         </div>
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           <select 
             value={selectedCampaignId} 
             onChange={(e) => setSelectedCampaignId(e.target.value)}
-            className="input bg-card/80 border-border/50 text-white font-sans"
+            className="input bg-card/80 border-border/50 text-white font-sans w-full"
           >
             {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
@@ -103,7 +103,7 @@ const Templates = () => {
             <button 
               disabled={saving || !selectedCampaignId}
               onClick={handleSave}
-              className="btn btn-primary flex items-center gap-2"
+              className="btn btn-primary flex items-center gap-2 justify-center"
             >
               <Save size={18} /> {saving ? 'Saving...' : 'Save Templates'}
             </button>
@@ -196,7 +196,7 @@ const Templates = () => {
             <h4 className="text-sm font-bold flex items-center gap-2 text-amber-500">
               <Send size={16} /> Send Test
             </h4>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input 
                 className="input flex-1" 
                 placeholder="Enter test email..." 

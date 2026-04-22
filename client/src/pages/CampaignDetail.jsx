@@ -129,19 +129,19 @@ const CampaignDetail = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="flex items-center justify-between">
+      <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link to="/campaigns" className="p-2 rounded-lg bg-card border border-border text-gray-400 hover:text-white transition-colors">
             <ArrowLeft size={20} />
           </Link>
           <div>
-            <h2 className="text-3xl font-extrabold text-white">{campaign?.name}</h2>
+            <h2 className="text-2xl md:text-3xl font-extrabold text-white">{campaign?.name}</h2>
             <p className="text-gray-400 text-sm">Leads management and import.</p>
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 w-full md:w-auto">
           {isAdmin && (
-            <button onClick={() => setImporting(true)} className="btn btn-secondary flex items-center gap-2">
+            <button onClick={() => setImporting(true)} className="btn btn-secondary flex items-center gap-2 w-full md:w-auto justify-center">
               <Upload size={18} /> Import CSV
             </button>
           )}
@@ -149,22 +149,22 @@ const CampaignDetail = () => {
       </header>
 
       {/* Stats Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
         <div className="glass p-4 rounded-2xl">
-          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Total Leads</p>
-          <p className="text-2xl font-bold text-white">{leads.length}</p>
+          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Total</p>
+          <p className="text-xl md:text-2xl font-bold text-white">{leads.length}</p>
         </div>
         <div className="glass p-4 rounded-2xl">
-          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Contacted</p>
-          <p className="text-2xl font-bold text-blue-400">{leads.filter(l => l.status !== 'pending').length}</p>
+          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Sent</p>
+          <p className="text-xl md:text-2xl font-bold text-blue-400">{leads.filter(l => l.status !== 'pending').length}</p>
         </div>
         <div className="glass p-4 rounded-2xl">
           <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Replied</p>
-          <p className="text-2xl font-bold text-green-400">{leads.filter(l => l.status === 'replied').length}</p>
+          <p className="text-xl md:text-2xl font-bold text-green-400">{leads.filter(l => l.status === 'replied').length}</p>
         </div>
         <div className="glass p-4 rounded-2xl">
-          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Success Rate</p>
-          <p className="text-2xl font-bold text-purple-400">
+          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Success</p>
+          <p className="text-xl md:text-2xl font-bold text-purple-400">
             {leads.length > 0 ? ((leads.filter(l => l.status === 'replied').length / leads.length) * 100).toFixed(1) : 0}%
           </p>
         </div>
@@ -172,17 +172,18 @@ const CampaignDetail = () => {
 
       {/* Leads Table */}
       <div className="glass rounded-3xl overflow-hidden border border-border/50">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-card/80 border-b border-border">
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Lead</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Company</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Contact & Social</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Stats</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Status</th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-right">Actions</th>
-            </tr>
-          </thead>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[800px] md:min-w-full">
+            <thead>
+              <tr className="bg-card/80 border-b border-border">
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Lead</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Company</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Contact</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Stats</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Status</th>
+                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-right">Actions</th>
+              </tr>
+            </thead>
           <tbody className="divide-y divide-border/50">
             {leads.map(lead => (
               <tr key={lead.id} className="hover:bg-card/30 transition-colors group">
@@ -274,6 +275,7 @@ const CampaignDetail = () => {
           </tbody>
         </table>
       </div>
+    </div>
 
       {/* Import Modal */}
       {importing && (
