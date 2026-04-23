@@ -80,7 +80,7 @@ const CampaignCard = ({ campaign, onToggle, onDelete }) => {
           onClick={() => navigate(`/campaigns/${campaign.id}`)}
           className="btn btn-primary py-2 px-4 text-xs flex items-center gap-2"
         >
-          View Leads <ChevronRight size={14} />
+          View Campaign <ChevronRight size={14} />
         </button>
       </div>
     </div>
