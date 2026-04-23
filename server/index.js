@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
+const nodemailer = require('nodemailer');
 const cron = require('node-cron');
 const multer = require('multer');
 const csv = require('csv-parser');
@@ -60,13 +61,16 @@ app.get('/', (req, res) => {
     res.send('OutreachOS API is running...');
 });
 
-// --- BREVO API CONFIG ---
-const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
-const BREVO_HEADERS = {
-    'accept': 'application/json',
-    'api-key': process.env.BREVO_API_KEY,
-    'content-type': 'application/json'
-};
+// --- SMTP CONFIG (Zoho Mail) ---
+const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.zoho.eu',
+    port: process.env.SMTP_PORT || 465,
+    secure: true, // true for 465, false for other ports
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+    }
+});
 
 // --- HELPERS ---
 async function sendEmail({ to, lead, subject, body, fromName, fromEmail }) {
@@ -102,16 +106,18 @@ async function sendEmail({ to, lead, subject, body, fromName, fromEmail }) {
         .replace(/\n/g, '<br/>');
 
     try {
-        const response = await axios.post(BREVO_API_URL, {
-            sender: { name: fromName || "OutreachOS", email: fromEmail || process.env.SENDER_EMAIL },
-            to: [{ email: to, name: name }],
+        const mailOptions = {
+            from: `"${fromName || "OutreachOS"}" <${fromEmail || process.env.SMTP_USER}>`,
+            to: to,
             subject: personalizedSubject,
-            htmlContent: `<html><body>${personalizedBody}</body></html>`
-        }, { headers: BREVO_HEADERS });
-        return { success: true, data: response.data };
+            html: `<html><body>${personalizedBody}</body></html>`
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        return { success: true, data: info };
     } catch (error) {
-        console.error('Brevo Email Error:', error.response?.data || error.message);
-        return { success: false, error: error.response?.data || error.message };
+        console.error('Email Error:', error.message);
+        return { success: false, error: error.message };
     }
 }
 

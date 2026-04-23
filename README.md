@@ -15,7 +15,7 @@ A professional, full-stack lead outreach automation platform designed to streaml
 
 - **⚡ Campaign Intelligence**: Create, orchestrate, and manage multi-stage outreach sequences with ease.
 - **📊 Lead Lifecycle Tracking**: Intelligent lead management system tracking progress from initial contact to conversion.
-- **🤖 Automated Sequences**: Power your outreach with automated follow-ups using `node-cron` and the Brevo API.
+- **🤖 Automated Sequences**: Power your outreach with automated follow-ups using `node-cron` and Zoho SMTP.
 - **👁️ Live Template Preview**: Real-time email editor with dynamic variable substitution for personalized messaging.
 - **📜 Detailed Activity Logs**: Maintain a comprehensive audit trail of every outreach event and status change.
 
@@ -23,7 +23,7 @@ A professional, full-stack lead outreach automation platform designed to streaml
 
 - **Core**: React 18, Node.js, Express
 - **Database**: Supabase (PostgreSQL)
-- **Email Engine**: Brevo API v3
+- **Email Engine**: Zoho Mail (SMTP via Nodemailer)
 - **Styling**: Tailwind CSS
 - **Scheduler**: Node-cron
 - **File Handling**: Multer (CSV processing)
@@ -80,8 +80,11 @@ Create `.env` files in both subdirectories:
 **Server (`/server/.env`):**
 ```env
 SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_anon_key
-BREVO_API_KEY=your_brevo_api_key
+SUPABASE_KEY=your_supabase_service_role_key
+SMTP_HOST=smtp.zoho.eu
+SMTP_PORT=465
+SMTP_USER=sahedalomsumit@zohomail.eu
+SMTP_PASS=your_zoho_app_password
 PORT=4000
 CLIENT_URL=http://localhost:5173
 ```

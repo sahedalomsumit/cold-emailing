@@ -91,8 +91,8 @@ const Dashboard = () => {
         <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl flex items-center gap-3 text-amber-500">
           <AlertCircle size={20} />
           <p className="text-sm font-sans font-semibold">
-            Daily Brevo limit warning: 250+ emails sent today. Automation paused
-            until tomorrow.
+            Daily email provider limit warning: 250+ emails sent today.
+            Automation paused until tomorrow.
           </p>
         </div>
       )}
