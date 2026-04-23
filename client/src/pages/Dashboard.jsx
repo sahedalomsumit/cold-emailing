@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../utils/api";
 import { supabase } from "../utils/supabase";
 import {
@@ -32,6 +33,7 @@ const StatCard = ({ title, value, icon: Icon, trend, color }) => (
 
 const Dashboard = () => {
   const { isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalLeads: 0,
     contacted: 0,
@@ -176,10 +178,16 @@ const Dashboard = () => {
             <div className="glass rounded-2xl p-6">
               <h3 className="text-lg mb-4">Quick Actions</h3>
               <div className="grid grid-cols-1 gap-3">
-                <button className="btn btn-secondary text-sm flex items-center justify-center gap-2">
+                <button 
+                  onClick={() => navigate('/campaigns')}
+                  className="btn btn-secondary text-sm flex items-center justify-center gap-2"
+                >
                   <Users size={16} /> Import Leads
                 </button>
-                <button className="btn btn-primary text-sm flex items-center justify-center gap-2">
+                <button 
+                  onClick={() => navigate('/templates')}
+                  className="btn btn-primary text-sm flex items-center justify-center gap-2"
+                >
                   <Mail size={16} /> Send Test Email
                 </button>
               </div>

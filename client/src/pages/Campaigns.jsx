@@ -94,7 +94,7 @@ const Campaigns = () => {
   const [newCampaign, setNewCampaign] = useState({
     name: "",
     sender_name: "",
-    from_email: "",
+    from_email: "hello@outreach.sahedalomsumit.com",
     follow_up_delays: [3, 7],
     max_follow_ups: 2,
     templates: {

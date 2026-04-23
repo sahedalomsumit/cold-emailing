@@ -65,7 +65,7 @@ const BREVO_HEADERS = {
 };
 
 // --- HELPERS ---
-async function sendEmail({ to, lead, subject, body }) {
+async function sendEmail({ to, lead, subject, body, fromName, fromEmail }) {
     const { name, company, phone, website, reviews, review_score, instagram, facebook, twitter, linkedin } = lead || {};
     
     const safeName = name || 'there';
@@ -95,14 +95,18 @@ async function sendEmail({ to, lead, subject, body }) {
         .replace(/{{instagram}}/g, instagram || '')
         .replace(/{{facebook}}/g, facebook || '')
         .replace(/{{twitter}}/g, twitter || '')
-        .replace(/{{linkedin}}/g, linkedin || '');
+        .replace(/{{linkedin}}/g, linkedin || '')
+        .replace(/\n/g, '<br/>'); // Convert newlines to HTML breaks
 
     try {
         const response = await axios.post(BREVO_API_URL, {
-            sender: { name: "OutreachOS", email: "outreach@outreachos.com" }, // Default if not specified
+            sender: { 
+                name: fromName || "OutreachOS", 
+                email: fromEmail || process.env.SENDER_EMAIL || "hello@outreach.sahedalomsumit.com" 
+            },
             to: [{ email: to, name: name }],
             subject: personalizedSubject,
-            htmlContent: personalizedBody
+            htmlContent: `<html><body>${personalizedBody}</body></html>`
         }, { headers: BREVO_HEADERS });
         return { success: true, data: response.data };
     } catch (error) {
@@ -329,12 +333,14 @@ app.get('/api/summary', authenticate, async (req, res) => {
 
 // --- TEST EMAIL ---
 app.post('/api/send-test', authenticate, checkAdmin, async (req, res) => {
-    const { email, name, company, subject, body } = req.body;
+    const { email, name, company, subject, body, fromEmail, fromName } = req.body;
     const result = await sendEmail({ 
         to: email, 
         lead: { name, company }, 
         subject, 
-        body 
+        body,
+        fromEmail,
+        fromName
     });
     if (result.success) {
         res.json({ success: true });
@@ -403,7 +409,9 @@ cron.schedule('0 9 * * *', async () => {
                     to: lead.email,
                     lead: lead,
                     subject: template.subject,
-                    body: template.body
+                    body: template.body,
+                    fromEmail: campaign.from_email,
+                    fromName: campaign.sender_name
                 });
 
                 if (result.success) {

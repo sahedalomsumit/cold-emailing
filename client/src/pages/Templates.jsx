@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../utils/api';
-import { Save, Eye, Send, Code, AlertCircle } from 'lucide-react';
+import { Save, Eye, Send, Code, AlertCircle, Bold, Italic, List, Link as LinkIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Templates = () => {
@@ -15,6 +15,7 @@ const Templates = () => {
   });
   const [saving, setSaving] = useState(false);
   const [testEmail, setTestEmail] = useState('');
+  const textareaRef = React.useRef(null);
 
   const fetchCampaigns = async () => {
     try {
@@ -36,7 +37,7 @@ const Templates = () => {
   useEffect(() => {
     const c = campaigns.find(c => c.id === selectedCampaignId);
     if (c) setTemplates(c.templates);
-  }, [selectedCampaignId]);
+  }, [selectedCampaignId, campaigns]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -56,21 +57,32 @@ const Templates = () => {
 
   const handleSendTest = async () => {
     if (!testEmail) return alert('Enter a test email');
+    if (!selectedCampaignId) return alert('Please select a campaign first');
+    
     try {
+      const campaign = campaigns.find(c => c.id === selectedCampaignId);
+      if (!campaign) return alert('Campaign not found');
+      
       await api.post('/send-test', {
         email: testEmail,
         name: 'Test Lead',
         company: 'Test Company',
         subject: templates[selectedType].subject,
-        body: templates[selectedType].body
+        body: templates[selectedType].body,
+        fromEmail: campaign?.from_email,
+        fromName: campaign?.sender_name
       });
       alert('Test email sent!');
     } catch (err) {
-      alert('Test send failed');
+      console.error(err);
+      const errorMsg = err.response?.data?.error;
+      const displayMsg = typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : (errorMsg || err.message);
+      alert('Test send failed: ' + displayMsg);
     }
   };
 
-  const renderPreview = (text) => {
+  const replaceTags = (text) => {
+    if (!text) return '';
     return text
       .replace(/{{name}}/g, '<span class="text-primary font-bold">Test Lead</span>')
       .replace(/{{company}}/g, '<span class="text-primary font-bold">Test Company</span>')
@@ -80,8 +92,37 @@ const Templates = () => {
       .replace(/{{reviews}}/g, '<span class="text-primary font-bold">120</span>')
       .replace(/{{review_score}}/g, '<span class="text-primary font-bold">4.8</span>')
       .replace(/{{instagram}}/g, '<span class="text-primary font-bold">@test_insta</span>')
-      .replace(/{{linkedin}}/g, '<span class="text-primary font-bold">linkedin.com/in/test</span>')
-      .replace(/\n/g, '<br/>');
+      .replace(/{{linkedin}}/g, '<span class="text-primary font-bold">linkedin.com/in/test</span>');
+  };
+
+  const renderPreview = (text) => {
+    return replaceTags(text).replace(/\n/g, '<br/>');
+  };
+
+  const insertFormat = (before, after = '') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = templates[selectedType].body;
+    const selectedText = text.substring(start, end);
+    
+    const newBody = text.substring(0, start) + before + selectedText + after + text.substring(end);
+    
+    setTemplates({
+      ...templates, 
+      [selectedType]: {
+        ...templates[selectedType], 
+        body: newBody
+      }
+    });
+
+    // Re-focus after state update
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, end + before.length);
+    }, 0);
   };
 
   return (
@@ -139,8 +180,48 @@ const Templates = () => {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Email Body</label>
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Email Body</label>
+                <div className="flex gap-1 bg-card/50 p-1 rounded-lg border border-border/50">
+                  <button 
+                    type="button"
+                    onClick={() => insertFormat('<b>', '</b>')}
+                    className="p-1.5 rounded-md hover:bg-primary/20 text-gray-400 hover:text-primary transition-all"
+                    title="Bold"
+                  >
+                    <Bold size={14} />
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => insertFormat('<i>', '</i>')}
+                    className="p-1.5 rounded-md hover:bg-primary/20 text-gray-400 hover:text-primary transition-all"
+                    title="Italic"
+                  >
+                    <Italic size={14} />
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => insertFormat('\n<ul>\n  <li>', '</li>\n</ul>')}
+                    className="p-1.5 rounded-md hover:bg-primary/20 text-gray-400 hover:text-primary transition-all"
+                    title="Bullet Points"
+                  >
+                    <List size={14} />
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      const url = prompt('Enter URL:', 'https://');
+                      if (url) insertFormat(`<a href="${url}" style="color: #3b82f6; text-decoration: underline;">`, '</a>');
+                    }}
+                    className="p-1.5 rounded-md hover:bg-primary/20 text-gray-400 hover:text-primary transition-all"
+                    title="Hyperlink"
+                  >
+                    <LinkIcon size={14} />
+                  </button>
+                </div>
+              </div>
               <textarea 
+                ref={textareaRef}
                 rows="12"
                 className="input w-full text-sm leading-relaxed" 
                 placeholder="Write your email here..."
@@ -184,7 +265,10 @@ const Templates = () => {
             </div>
             <div className="mb-6 pb-6 border-b border-border">
               <p className="text-xs text-gray-500 mb-1">To: <span className="text-gray-300">Test Lead (test@example.com)</span></p>
-              <p className="text-sm font-bold text-white mt-4">{templates[selectedType].subject || 'No Subject'}</p>
+              <div 
+                className="text-sm font-bold text-white mt-4"
+                dangerouslySetInnerHTML={{ __html: replaceTags(templates[selectedType].subject) || 'No Subject' }}
+              />
             </div>
             <div 
               className="text-sm text-gray-300 leading-relaxed font-sans"
@@ -205,7 +289,13 @@ const Templates = () => {
                 onChange={e => setTestEmail(e.target.value)}
               />
               {isAdmin && (
-                <button onClick={handleSendTest} className="btn btn-secondary px-6">Send</button>
+                <button 
+                  disabled={!selectedCampaignId}
+                  onClick={handleSendTest} 
+                  className="btn btn-secondary px-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Send
+                </button>
               )}
             </div>
           </div>
