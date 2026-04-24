@@ -98,8 +98,8 @@ VITE_API_URL=http://localhost:4000/api
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/cold-emailing.git
-cd cold-emailing
+git clone https://github.com/sahedalomsumit/OutreachOS.git
+cd OutreachOS
 
 # Setup Backend
 cd server && npm install
@@ -125,7 +125,7 @@ npm run dev # Starts on port 5173
    - `SUPABASE_URL`: Your Supabase URL
    - `SUPABASE_KEY`: Your Supabase Anon Key
    - `BREVO_API_KEY`: Your Brevo API Key
-   - `CLIENT_URL`: `https://yourusername.github.io/cold-emailing` (Your GH Pages URL)
+   - `CLIENT_URL`: `https://sahedalomsumit.github.io/outreachos` (Your GH Pages URL)
    - `PORT`: `4000`
 
 ### 2. Frontend (GitHub Pages)
