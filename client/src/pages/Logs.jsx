@@ -34,7 +34,7 @@ const Logs = () => {
     const matchesFilter = filter === "all" || log.status === filter;
     const matchesSearch =
       !search ||
-      log.leads?.name.toLowerCase().includes(search.toLowerCase()) ||
+      log.leads?.company?.toLowerCase().includes(search.toLowerCase()) ||
       log.leads?.email.toLowerCase().includes(search.toLowerCase()) ||
       log.campaigns?.name.toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
@@ -128,7 +128,7 @@ const Logs = () => {
                   </td>
                   <td className="px-6 py-4">
                     <p className="text-sm font-bold text-white">
-                      {log.leads?.name}
+                      {log.leads?.company || "Lead"}
                     </p>
                     <p className="text-[10px] text-gray-500 font-mono">
                       {log.leads?.email}

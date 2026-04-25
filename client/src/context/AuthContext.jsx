@@ -44,10 +44,26 @@ export const AuthProvider = ({ children }) => {
     return supabase.auth.signOut();
   };
 
+  const updateProfile = async (updates) => {
+    const { data, error } = await supabase.auth.updateUser({
+      data: updates
+    });
+    if (data?.user) setUser(data.user);
+    return { data, error };
+  };
+
+  const updateEmail = async (email) => {
+    return supabase.auth.updateUser({ email });
+  };
+
+  const updatePassword = async (password) => {
+    return supabase.auth.updateUser({ password });
+  };
+
   const isAdmin = user?.email === 'sahedalomsumit@gmail.com';
 
   return (
-    <AuthContext.Provider value={{ user, loading, signup, login, logout, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, signup, login, logout, isAdmin, updateProfile, updateEmail, updatePassword }}>
       {!loading && children}
     </AuthContext.Provider>
   );

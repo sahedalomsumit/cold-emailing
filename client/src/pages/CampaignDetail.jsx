@@ -189,7 +189,7 @@ const CampaignDetail = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="font-bold text-white">{log.leads?.name || log.leads?.company}</p>
+                      <p className="font-bold text-white">{log.leads?.company || 'Lead'}</p>
                       <p className="text-[10px] text-gray-500">{log.leads?.email}</p>
                     </td>
                     <td className="px-6 py-4">

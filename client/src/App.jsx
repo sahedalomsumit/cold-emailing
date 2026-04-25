@@ -9,6 +9,8 @@ import CampaignDetail from './pages/CampaignDetail';
 import Leads from './pages/Leads';
 import Templates from './pages/Templates';
 import Logs from './pages/Logs';
+import Settings from './pages/Settings';
+import { Settings as SettingsIcon } from 'lucide-react';
 
 const SidebarLink = ({ to, icon: Icon, children, onClick }) => {
   const location = useLocation();
@@ -84,6 +86,7 @@ const Layout = ({ children }) => {
           <SidebarLink to="/leads" icon={Users}>Leads</SidebarLink>
           <SidebarLink to="/templates" icon={FileText}>Templates</SidebarLink>
           <SidebarLink to="/logs" icon={Activity}>Activity Logs</SidebarLink>
+          <SidebarLink to="/settings" icon={SettingsIcon}>Settings</SidebarLink>
         </nav>
 
         <div className="mt-auto space-y-4">
@@ -143,6 +146,7 @@ function App() {
           <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
           <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
           <Route path="/logs" element={<ProtectedRoute><Logs /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Router>

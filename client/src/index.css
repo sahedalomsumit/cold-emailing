@@ -55,6 +55,10 @@ h1, h2, h3, h4, h5, h6 {
   @apply bg-card border border-border rounded-lg px-4 py-2 outline-none focus:border-primary/50 transition-colors font-mono text-sm;
 }
 
+.input-field {
+  @apply w-full bg-card/50 border border-border rounded-2xl px-6 py-4 outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all duration-300 font-sans text-white placeholder:text-gray-600;
+}
+
 .badge {
   @apply px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider;
 }

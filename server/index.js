@@ -376,15 +376,15 @@ app.get('/api/logs', authenticate, async (req, res) => {
         let query;
         if (isUserAdmin(req.user)) {
             // Admins see everything, no need for complex inner joins that might fail if relationships aren't perfect
-            query = supabase.from('email_logs').select('*, campaigns(name, user_id), leads(email, name)');
+            query = supabase.from('email_logs').select('*, campaigns(name, user_id), leads(email, company)');
         } else {
             // Regular users only see their own logs via campaign link
-            query = supabase.from('email_logs').select('*, campaigns!inner(name, user_id), leads(email, name)')
+            query = supabase.from('email_logs').select('*, campaigns!inner(name, user_id), leads(email, company)')
                 .eq('campaigns.user_id', req.user.id);
         }
 
         // Use created_at if sent_at is missing, or try both
-        const { data, error } = await query.order('created_at', { ascending: false });
+        const { data, error } = await query.order('sent_at', { ascending: false });
         
         if (error) {
             console.error('Supabase logs error:', error);
@@ -405,9 +405,9 @@ app.get('/api/campaigns/:id/logs', authenticate, async (req, res) => {
         if (!campaign) return res.status(403).json({ error: 'Access denied' });
 
         const { data, error } = await supabase.from('email_logs')
-            .select('*, leads(email, name)')
+            .select('*, leads(email, company)')
             .eq('campaign_id', req.params.id)
-            .order('created_at', { ascending: false });
+            .order('sent_at', { ascending: false });
             
         if (error) return res.status(500).json({ error: error.message });
         res.json(data);
@@ -439,35 +439,83 @@ app.post('/api/leads/:id/reply', authenticate, checkAdmin, async (req, res) => {
 app.get('/api/summary', authenticate, async (req, res) => {
     try {
         const isAdmin = isUserAdmin(req.user);
+        console.log(`Summary requested. User: ${req.user.email}, ID: ${req.user.id}, IsAdmin: ${isAdmin}`);
         
-        let totalQuery = supabase.from('leads').select('*', { count: 'exact', head: true });
-        let contactedQuery = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('status', 'pending');
-        let repliedQuery = supabase.from('leads').select('*', { count: 'exact', head: true }).eq('status', 'replied');
+        let totalLeads = 0;
+        let contacted = 0;
+        let replied = 0;
+        let totalLists = 0;
+        let totalCampaigns = 0;
+        let dailyCount = 0;
 
-        if (!isAdmin) {
-            totalQuery = totalQuery.eq('user_id', req.user.id);
-            contactedQuery = contactedQuery.eq('user_id', req.user.id);
-            repliedQuery = repliedQuery.eq('user_id', req.user.id);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (isAdmin) {
+            const [tRes, cRes, rRes, lRes, camRes, dRes] = await Promise.all([
+                supabase.from('leads').select('*', { count: 'exact' }).limit(0),
+                supabase.from('leads').select('*', { count: 'exact' }).neq('status', 'pending').limit(0),
+                supabase.from('leads').select('*', { count: 'exact' }).eq('status', 'replied').limit(0),
+                supabase.from('lead_lists').select('*', { count: 'exact' }).limit(0),
+                supabase.from('campaigns').select('*', { count: 'exact' }).limit(0),
+                supabase.from('email_logs').select('*', { count: 'exact' }).gte('sent_at', today.toISOString()).limit(0)
+            ]);
+            
+            totalLeads = tRes.count || 0;
+            contacted = cRes.count || 0;
+            replied = rRes.count || 0;
+            totalLists = lRes.count || 0;
+            totalCampaigns = camRes.count || 0;
+            dailyCount = dRes.count || 0;
+
+            console.log("Admin summary raw counts:", { 
+                leads: tRes.count, 
+                campaigns: camRes.count, 
+                daily: dRes.count,
+                leadsError: tRes.error,
+                campaignsError: camRes.error 
+            });
+        } else {
+            const { data: userCampaigns } = await supabase.from('campaigns').select('id').eq('user_id', req.user.id);
+            const campaignIds = userCampaigns?.map(c => c.id) || [];
+
+            const [tRes, cRes, rRes, lRes, camRes, dRes] = await Promise.all([
+                supabase.from('leads').select('*', { count: 'exact' }).eq('user_id', req.user.id).limit(0),
+                supabase.from('leads').select('*', { count: 'exact' }).eq('user_id', req.user.id).neq('status', 'pending').limit(0),
+                supabase.from('leads').select('*', { count: 'exact' }).eq('user_id', req.user.id).eq('status', 'replied').limit(0),
+                supabase.from('lead_lists').select('*', { count: 'exact' }).eq('user_id', req.user.id).limit(0),
+                supabase.from('campaigns').select('*', { count: 'exact' }).eq('user_id', req.user.id).limit(0),
+                campaignIds.length > 0 
+                    ? supabase.from('email_logs').select('*', { count: 'exact' }).in('campaign_id', campaignIds).gte('sent_at', today.toISOString()).limit(0)
+                    : { count: 0 }
+            ]);
+            
+            totalLeads = tRes.count || 0;
+            contacted = cRes.count || 0;
+            replied = rRes.count || 0;
+            totalLists = lRes.count || 0;
+            totalCampaigns = camRes.count || 0;
+            dailyCount = dRes.count || 0;
+
+            console.log("User summary raw counts:", { 
+                leads: tRes.count, 
+                campaigns: camRes.count, 
+                daily: dRes.count,
+                campaignIds: campaignIds.length
+            });
         }
 
-        const [
-            { count: totalLeads },
-            { count: contacted },
-            { count: replied }
-        ] = await Promise.all([
-            totalQuery,
-            contactedQuery,
-            repliedQuery
-        ]);
-
         res.json({ 
-            totalLeads: totalLeads || 0, 
-            contacted: contacted || 0, 
-            replied: replied || 0, 
+            totalLeads, 
+            contacted, 
+            replied, 
+            totalLists,
+            totalCampaigns,
+            dailyCount,
             replyRate: contacted > 0 ? ((replied / contacted) * 100).toFixed(1) : 0 
         });
     } catch (err) { 
-        console.error('Summary error:', err);
+        console.error("Summary route crash:", err);
         res.status(500).json({ error: err.message }); 
     }
 });

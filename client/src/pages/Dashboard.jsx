@@ -8,6 +8,7 @@ import {
   MessageSquare,
   TrendingUp,
   AlertCircle,
+  Rocket,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
@@ -39,6 +40,8 @@ const Dashboard = () => {
     contacted: 0,
     replied: 0,
     replyRate: 0,
+    totalLists: 0,
+    totalCampaigns: 0,
     dailyCount: 0,
   });
   const [logs, setLogs] = useState([]);
@@ -46,25 +49,40 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [logsRes, summaryRes] = await Promise.all([
-          api.get("/logs"),
-          api.get("/summary"),
-        ]);
+        // Fetch logs and summary independently so one failure doesn't block the other
+        api
+          .get("/logs")
+          .then((res) => setLogs(res.data.slice(0, 5)))
+          .catch((err) => console.error("Logs fetch failed:", err));
 
-        setLogs(logsRes.data.slice(0, 5));
-        setStats(summaryRes.data);
+        api
+          .get("/summary")
+          .then((res) => setStats((prev) => ({ ...prev, ...res.data })))
+          .catch((err) => console.error("Summary fetch failed:", err));
       } catch (err) {
-        console.error(err);
+        console.error("fetchData crash:", err);
       }
     };
     fetchData();
 
     // Real-time sync for dashboard stats
     const channel = supabase
-      .channel('dashboard-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'email_logs' }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'campaigns' }, fetchData)
+      .channel("dashboard-sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leads" },
+        fetchData,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "email_logs" },
+        fetchData,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "campaigns" },
+        fetchData,
+      )
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -83,7 +101,7 @@ const Dashboard = () => {
         </div>
         <div className="glass px-4 py-2 rounded-xl flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">
           <div className="w-2 h-2 rounded-full bg-primary" />
-          Today's Activity
+          Lifetime's Activity
         </div>
       </header>
 
@@ -97,31 +115,43 @@ const Dashboard = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatCard
           title="Total Leads"
-          value={stats.totalLeads.toLocaleString()}
+          value={(stats.totalLeads || 0).toLocaleString()}
           icon={Users}
           color="primary"
           trend={stats.trends?.leads}
         />
         <StatCard
+          title="Total Lead Lists"
+          value={(stats.totalLists || 0).toLocaleString()}
+          icon={Users}
+          color="purple-400"
+        />
+        <StatCard
+          title="Total Campaigns"
+          value={(stats.totalCampaigns || 0).toLocaleString()}
+          icon={Rocket}
+          color="amber-400"
+        />
+        <StatCard
           title="Contacted"
-          value={stats.contacted.toLocaleString()}
+          value={(stats.contacted || 0).toLocaleString()}
           icon={Mail}
           color="blue-400"
           trend={stats.trends?.contacted}
         />
         <StatCard
           title="Replied"
-          value={stats.replied.toLocaleString()}
+          value={(stats.replied || 0).toLocaleString()}
           icon={MessageSquare}
           color="green-400"
           trend={stats.trends?.replied}
         />
         <StatCard
           title="Reply Rate"
-          value={`${stats.replyRate}%`}
+          value={`${stats.replyRate || 0}%`}
           icon={TrendingUp}
           color="purple-400"
         />
@@ -145,7 +175,7 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-white">
-                        {log.leads?.name || "Lead"}
+                        {log.leads?.company || "Lead"}
                       </p>
                       <p className="text-xs text-gray-500">
                         {log.campaigns?.name || "Campaign"}
@@ -159,7 +189,9 @@ const Dashboard = () => {
                       {log.type} {log.status}
                     </span>
                     <p className="text-[10px] text-gray-600 mt-1">
-                      {new Date(log.sent_at || log.created_at).toLocaleTimeString()}
+                      {new Date(
+                        log.sent_at || log.created_at,
+                      ).toLocaleTimeString()}
                     </p>
                   </div>
                 </div>
@@ -178,14 +210,14 @@ const Dashboard = () => {
             <div className="glass rounded-2xl p-6">
               <h3 className="text-lg mb-4">Quick Actions</h3>
               <div className="grid grid-cols-1 gap-3">
-                <button 
-                  onClick={() => navigate('/campaigns')}
+                <button
+                  onClick={() => navigate("/campaigns")}
                   className="btn btn-secondary text-sm flex items-center justify-center gap-2"
                 >
                   <Users size={16} /> Import Leads
                 </button>
-                <button 
-                  onClick={() => navigate('/templates')}
+                <button
+                  onClick={() => navigate("/templates")}
                   className="btn btn-primary text-sm flex items-center justify-center gap-2"
                 >
                   <Mail size={16} /> Send Test Email
@@ -193,16 +225,6 @@ const Dashboard = () => {
               </div>
             </div>
           )}
-
-          <div className="bg-linear-to-br from-primary/20 to-purple-600/20 border border-primary/20 rounded-2xl p-6">
-            <h3 className="text-white font-sans font-bold mb-2">Pro Tip</h3>
-            <p className="text-xs text-gray-400 leading-relaxed">
-              Personalize your follow-up templates using{" "}
-              <span className="text-primary font-mono">{"{{ name }}"}</span> and{" "}
-              <span className="text-primary font-mono">{"{{ company }}"}</span>{" "}
-              tags to increase your reply rate by up to 25%.
-            </p>
-          </div>
         </div>
       </div>
     </div>
