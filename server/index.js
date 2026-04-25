@@ -148,17 +148,17 @@ app.get('/api/campaigns/:id', authenticate, async (req, res) => {
 });
 
 app.post('/api/campaigns', authenticate, checkAdmin, async (req, res) => {
-    const { name, from_email, sender_name, follow_up_delays, max_follow_ups, templates } = req.body;
+    const { name, from_email, sender_name, follow_up_delays, max_follow_ups, templates, lead_list_ids } = req.body;
     const { data, error } = await supabase.from('campaigns').insert([{
-        name, from_email, sender_name, follow_up_delays, max_follow_ups, templates, user_id: req.user.id
+        name, from_email, sender_name, follow_up_delays, max_follow_ups, templates, lead_list_ids, user_id: req.user.id
     }]).select();
     if (error) return res.status(500).json({ error: error.message });
     res.json(data[0]);
 });
 
 app.put('/api/campaigns/:id', authenticate, checkAdmin, async (req, res) => {
-    const { name, from_email, sender_name, follow_up_delays, templates } = req.body;
-    let query = supabase.from('campaigns').update({ name, from_email, sender_name, follow_up_delays, templates }).eq('id', req.params.id);
+    const { name, from_email, sender_name, follow_up_delays, templates, lead_list_ids } = req.body;
+    let query = supabase.from('campaigns').update({ name, from_email, sender_name, follow_up_delays, templates, lead_list_ids }).eq('id', req.params.id);
     if (!isUserAdmin(req.user)) query = query.eq('user_id', req.user.id);
     const { data, error } = await query.select();
     if (error) return res.status(500).json({ error: error.message });
@@ -190,41 +190,54 @@ app.post('/api/campaigns/:id/pause', authenticate, checkAdmin, async (req, res) 
     res.json(data[0]);
 });
 
-// --- LEAD ROUTES ---
-app.get('/api/campaigns/:id/leads', authenticate, async (req, res) => {
-    let cQuery = supabase.from('campaigns').select('id').eq('id', req.params.id);
-    if (!isUserAdmin(req.user)) cQuery = cQuery.eq('user_id', req.user.id);
-    const { data: campaign } = await cQuery.single();
-    if (!campaign) return res.status(403).json({ error: 'Access denied or campaign not found' });
-
-    const { data, error } = await supabase.from('leads').select('*').eq('campaign_id', req.params.id).order('created_at', { ascending: false });
+// --- LEAD LIST ROUTES ---
+app.get('/api/lead-lists', authenticate, async (req, res) => {
+    let query = supabase.from('lead_lists').select('*');
+    if (!isUserAdmin(req.user)) {
+        query = query.eq('user_id', req.user.id);
+    }
+    const { data, error } = await query.order('created_at', { ascending: false });
     if (error) return res.status(500).json({ error: error.message });
     res.json(data);
 });
 
-app.post('/api/campaigns/:id/leads', authenticate, checkAdmin, async (req, res) => {
-    let cQuery = supabase.from('campaigns').select('id, user_id').eq('id', req.params.id);
-    if (!isUserAdmin(req.user)) cQuery = cQuery.eq('user_id', req.user.id);
-    const { data: campaign } = await cQuery.single();
-    if (!campaign) return res.status(403).json({ error: 'Access denied' });
+app.post('/api/lead-lists', authenticate, checkAdmin, async (req, res) => {
+    const { name } = req.body;
+    const { data, error } = await supabase.from('lead_lists').insert([{
+        name, user_id: req.user.id
+    }]).select();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data[0]);
+});
 
-    const leadData = { ...req.body, campaign_id: req.params.id, user_id: campaign.user_id };
+app.delete('/api/lead-lists/:id', authenticate, checkAdmin, async (req, res) => {
+    let query = supabase.from('lead_lists').delete().eq('id', req.params.id);
+    if (!isUserAdmin(req.user)) query = query.eq('user_id', req.user.id);
+    const { error } = await query;
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
+// --- LEAD ROUTES ---
+app.get('/api/lead-lists/:id/leads', authenticate, async (req, res) => {
+    const { data, error } = await supabase.from('leads').select('*').eq('list_id', req.params.id).order('created_at', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
+});
+
+app.post('/api/lead-lists/:id/leads', authenticate, checkAdmin, async (req, res) => {
+    const leadData = { ...req.body, list_id: req.params.id, user_id: req.user.id };
     const { data, error } = await supabase.from('leads').insert([leadData]).select();
     if (error) return res.status(500).json({ error: error.message });
     res.json(data[0]);
 });
 
-app.post('/api/campaigns/:id/leads/import', authenticate, checkAdmin, upload.single('file'), async (req, res) => {
-    let cQuery = supabase.from('campaigns').select('id, user_id').eq('id', req.params.id);
-    if (!isUserAdmin(req.user)) cQuery = cQuery.eq('user_id', req.user.id);
-    const { data: campaign } = await cQuery.single();
-    if (!campaign) return res.status(403).json({ error: 'Access denied' });
-
+app.post('/api/lead-lists/:id/leads/import', authenticate, checkAdmin, upload.single('file'), async (req, res) => {
     const results = [];
     fs.createReadStream(req.file.path).pipe(csv({ mapHeaders: ({ header }) => header.toLowerCase().trim() }))
         .on('data', (data) => {
             if (data.email && data.company) {
-                results.push({ ...data, campaign_id: req.params.id, user_id: campaign.user_id, reviews: parseInt(data.reviews) || 0, review_score: parseFloat(data.review_score) || 0 });
+                results.push({ ...data, list_id: req.params.id, user_id: req.user.id, reviews: parseInt(data.reviews) || 0, review_score: parseFloat(data.review_score) || 0 });
             }
         })
         .on('end', async () => {
@@ -234,6 +247,21 @@ app.post('/api/campaigns/:id/leads/import', authenticate, checkAdmin, upload.sin
             if (error) return res.status(500).json({ error: error.message });
             res.json({ count: data.length });
         });
+});
+
+app.get('/api/campaigns/:id/leads', authenticate, async (req, res) => {
+    let cQuery = supabase.from('campaigns').select('id, lead_list_ids').eq('id', req.params.id);
+    if (!isUserAdmin(req.user)) cQuery = cQuery.eq('user_id', req.user.id);
+    const { data: campaign } = await cQuery.single();
+    if (!campaign) return res.status(403).json({ error: 'Access denied or campaign not found' });
+
+    if (!campaign.lead_list_ids || campaign.lead_list_ids.length === 0) {
+        return res.json([]);
+    }
+
+    const { data, error } = await supabase.from('leads').select('*').in('list_id', campaign.lead_list_ids).order('created_at', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data);
 });
 
 app.put('/api/leads/:id/status', authenticate, checkAdmin, async (req, res) => {
@@ -376,7 +404,14 @@ cron.schedule('0 9 * * *', async () => {
     const { data: campaigns } = await supabase.from('campaigns').select('*').eq('active', true);
     if (!campaigns) return;
     for (const campaign of campaigns) {
-        const { data: leads } = await supabase.from('leads').select('*').eq('campaign_id', campaign.id).not('status', 'in', '("replied","bounced","completed")').lt('follow_ups', campaign.max_follow_ups + 1);
+        if (!campaign.lead_list_ids || campaign.lead_list_ids.length === 0) continue;
+        
+        const { data: leads } = await supabase.from('leads')
+            .select('*')
+            .in('list_id', campaign.lead_list_ids)
+            .not('status', 'in', '("replied","bounced","completed")')
+            .lt('follow_ups', campaign.max_follow_ups + 1);
+            
         if (!leads) continue;
         for (const lead of leads) {
             let type = lead.last_contact ? `follow_up_${lead.follow_ups + 1}` : 'initial';

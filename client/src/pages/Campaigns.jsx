@@ -90,6 +90,7 @@ const CampaignCard = ({ campaign, onToggle, onDelete }) => {
 const Campaigns = () => {
   const { isAdmin } = useAuth();
   const [campaigns, setCampaigns] = useState([]);
+  const [leadLists, setLeadLists] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [newCampaign, setNewCampaign] = useState({
     name: "",
@@ -97,6 +98,7 @@ const Campaigns = () => {
     from_email: "hello@outreach.sahedalomsumit.com",
     follow_up_delays: [3, 7],
     max_follow_ups: 2,
+    lead_list_ids: [],
     templates: {
       initial: {
         subject: "Quick question for {{name}}",
@@ -124,6 +126,7 @@ const Campaigns = () => {
 
   useEffect(() => {
     fetchCampaigns();
+    api.get('/lead-lists').then(res => setLeadLists(res.data)).catch(console.error);
 
     // Set up real-time subscription for "sync everywhere"
     const channel = supabase
@@ -292,6 +295,33 @@ const Campaigns = () => {
                       })
                     }
                   />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                  Select Lead Lists
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-4 bg-card/30 rounded-2xl border border-border">
+                  {leadLists.map(list => (
+                    <label key={list.id} className="flex items-center gap-3 p-2 hover:bg-card/50 rounded-lg cursor-pointer transition-colors">
+                      <input 
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-gray-600 bg-background text-primary focus:ring-primary/20"
+                        checked={newCampaign.lead_list_ids.includes(list.id)}
+                        onChange={(e) => {
+                          const ids = e.target.checked 
+                            ? [...newCampaign.lead_list_ids, list.id]
+                            : newCampaign.lead_list_ids.filter(id => id !== list.id);
+                          setNewCampaign({ ...newCampaign, lead_list_ids: ids });
+                        }}
+                      />
+                      <span className="text-sm text-gray-300 truncate">{list.name}</span>
+                    </label>
+                  ))}
+                  {leadLists.length === 0 && (
+                    <p className="col-span-full text-xs text-gray-500 italic">No lead lists found. Create one in the Leads page first.</p>
+                  )}
                 </div>
               </div>
 

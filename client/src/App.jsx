@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Megaphone, FileText, Activity, LogOut, Loader2, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Megaphone, FileText, Activity, LogOut, Loader2, Menu, X, Users } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
 import Campaigns from './pages/Campaigns';
 import CampaignDetail from './pages/CampaignDetail';
+import Leads from './pages/Leads';
 import Templates from './pages/Templates';
 import Logs from './pages/Logs';
 
@@ -80,6 +81,7 @@ const Layout = ({ children }) => {
         <nav className="flex flex-col gap-2 mt-4 lg:mt-0">
           <SidebarLink to="/" icon={LayoutDashboard}>Dashboard</SidebarLink>
           <SidebarLink to="/campaigns" icon={Megaphone}>Campaigns</SidebarLink>
+          <SidebarLink to="/leads" icon={Users}>Leads</SidebarLink>
           <SidebarLink to="/templates" icon={FileText}>Templates</SidebarLink>
           <SidebarLink to="/logs" icon={Activity}>Activity Logs</SidebarLink>
         </nav>
@@ -138,6 +140,7 @@ function App() {
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/campaigns" element={<ProtectedRoute><Campaigns /></ProtectedRoute>} />
           <Route path="/campaigns/:id" element={<ProtectedRoute><CampaignDetail /></ProtectedRoute>} />
+          <Route path="/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />
           <Route path="/templates" element={<ProtectedRoute><Templates /></ProtectedRoute>} />
           <Route path="/logs" element={<ProtectedRoute><Logs /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" />} />
