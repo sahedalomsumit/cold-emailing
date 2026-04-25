@@ -17,7 +17,7 @@ import {
 
 const CampaignCard = ({ campaign, onToggle, onDelete }) => {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isSuperAdmin } = useAuth();
 
   return (
     <div className="glass p-6 rounded-2xl group hover:border-primary/30 transition-all duration-300">
@@ -57,7 +57,7 @@ const CampaignCard = ({ campaign, onToggle, onDelete }) => {
       </div>
 
       <div className="flex items-center justify-between pt-4 border-t border-border">
-        {isAdmin && (
+        {isSuperAdmin && (
           <div className="flex gap-2">
             <button
               onClick={() => onToggle(campaign)}
@@ -79,7 +79,7 @@ const CampaignCard = ({ campaign, onToggle, onDelete }) => {
 };
 
 const Campaigns = () => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, isSuperAdmin, user } = useAuth();
   const [campaigns, setCampaigns] = useState([]);
   const [leadLists, setLeadLists] = useState([]);
   const [showModal, setShowModal] = useState(false);

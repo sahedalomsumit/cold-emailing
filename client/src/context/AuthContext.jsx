@@ -65,10 +65,11 @@ export const AuthProvider = ({ children }) => {
     return supabase.auth.updateUser({ password });
   };
 
-  const isAdmin = user?.email === 'sahedalomsumit@zohomail.eu';
+  const isSuperAdmin = user?.email === 'sahedalomsumit@zohomail.eu';
+  const isAdmin = !!user; // Others can do everything
 
   return (
-    <AuthContext.Provider value={{ user, loading, signup, login, logout, isAdmin, updateProfile, updateEmail, updatePassword }}>
+    <AuthContext.Provider value={{ user, loading, signup, login, logout, isAdmin, isSuperAdmin, updateProfile, updateEmail, updatePassword }}>
       {!loading && children}
     </AuthContext.Provider>
   );

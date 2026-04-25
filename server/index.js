@@ -55,14 +55,22 @@ const authenticate = async (req, res, next) => {
     next();
 };
 
-const isUserAdmin = (user) => {
+const isSuperAdmin = (user) => {
     const ADMIN_EMAIL = 'sahedalomsumit@zohomail.eu';
     return user?.email === ADMIN_EMAIL || user?.user_metadata?.email === ADMIN_EMAIL;
 };
 
 const checkAdmin = (req, res, next) => {
-    if (!isUserAdmin(req.user)) {
-        return res.status(403).json({ error: 'Access denied. Only the administrator can perform this action.' });
+    // "others can do everything" - so we allow all authenticated users to pass checkAdmin
+    if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    next();
+};
+
+const checkSuperAdmin = (req, res, next) => {
+    if (!isSuperAdmin(req.user)) {
+        return res.status(403).json({ error: 'Access denied. Only the Super Administrator can run campaigns.' });
     }
     next();
 };
@@ -137,7 +145,7 @@ async function sendEmail({ to, lead, subject, body, fromName, fromEmail }) {
 // --- CAMPAIGN ROUTES ---
 app.get('/api/campaigns', authenticate, async (req, res) => {
     let query = supabase.from('campaigns').select('*');
-    if (!isUserAdmin(req.user)) {
+    if (!isSuperAdmin(req.user)) {
         query = query.eq('user_id', req.user.id);
     }
     const { data, error } = await query.order('created_at', { ascending: false });
@@ -147,7 +155,7 @@ app.get('/api/campaigns', authenticate, async (req, res) => {
 
 app.get('/api/campaigns/:id', authenticate, async (req, res) => {
     let query = supabase.from('campaigns').select('*').eq('id', req.params.id);
-    if (!isUserAdmin(req.user)) {
+    if (!isSuperAdmin(req.user)) {
         query = query.eq('user_id', req.user.id);
     }
     const { data, error } = await query.single();
@@ -170,7 +178,7 @@ app.post('/api/campaigns', authenticate, checkAdmin, async (req, res) => {
 app.put('/api/campaigns/:id', authenticate, checkAdmin, async (req, res) => {
     const { name, from_email, sender_name, follow_up_delays, templates, lead_list_ids } = req.body;
     let query = supabase.from('campaigns').update({ name, from_email, sender_name, follow_up_delays, templates, lead_list_ids }).eq('id', req.params.id);
-    if (!isUserAdmin(req.user)) query = query.eq('user_id', req.user.id);
+    if (!isSuperAdmin(req.user)) query = query.eq('user_id', req.user.id);
     const { data, error } = await query.select();
     if (error) return res.status(500).json({ error: error.message });
     if (!data || data.length === 0) return res.status(404).json({ error: 'Campaign not found' });
@@ -179,23 +187,23 @@ app.put('/api/campaigns/:id', authenticate, checkAdmin, async (req, res) => {
 
 app.delete('/api/campaigns/:id', authenticate, checkAdmin, async (req, res) => {
     let query = supabase.from('campaigns').delete().eq('id', req.params.id);
-    if (!isUserAdmin(req.user)) query = query.eq('user_id', req.user.id);
+    if (!isSuperAdmin(req.user)) query = query.eq('user_id', req.user.id);
     const { error } = await query;
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
 });
 
-app.post('/api/campaigns/:id/activate', authenticate, checkAdmin, async (req, res) => {
+app.post('/api/campaigns/:id/activate', authenticate, checkSuperAdmin, async (req, res) => {
     let query = supabase.from('campaigns').update({ active: true }).eq('id', req.params.id);
-    if (!isUserAdmin(req.user)) query = query.eq('user_id', req.user.id);
+    if (!isSuperAdmin(req.user)) query = query.eq('user_id', req.user.id);
     const { data, error } = await query.select();
     if (error) return res.status(500).json({ error: error.message });
     res.json(data[0]);
 });
 
-app.post('/api/campaigns/:id/pause', authenticate, checkAdmin, async (req, res) => {
+app.post('/api/campaigns/:id/pause', authenticate, checkSuperAdmin, async (req, res) => {
     let query = supabase.from('campaigns').update({ active: false }).eq('id', req.params.id);
-    if (!isUserAdmin(req.user)) query = query.eq('user_id', req.user.id);
+    if (!isSuperAdmin(req.user)) query = query.eq('user_id', req.user.id);
     const { data, error } = await query.select();
     if (error) return res.status(500).json({ error: error.message });
     res.json(data[0]);
@@ -204,7 +212,7 @@ app.post('/api/campaigns/:id/pause', authenticate, checkAdmin, async (req, res) 
 // --- LEAD LIST ROUTES ---
 app.get('/api/lead-lists', authenticate, async (req, res) => {
     let query = supabase.from('lead_lists').select('*');
-    if (!isUserAdmin(req.user)) {
+    if (!isSuperAdmin(req.user)) {
         query = query.eq('user_id', req.user.id);
     }
     const { data, error } = await query.order('created_at', { ascending: false });
@@ -224,7 +232,7 @@ app.post('/api/lead-lists', authenticate, checkAdmin, async (req, res) => {
 app.put('/api/lead-lists/:id', authenticate, checkAdmin, async (req, res) => {
     const { name } = req.body;
     let query = supabase.from('lead_lists').update({ name }).eq('id', req.params.id);
-    if (!isUserAdmin(req.user)) query = query.eq('user_id', req.user.id);
+    if (!isSuperAdmin(req.user)) query = query.eq('user_id', req.user.id);
     const { data, error } = await query.select();
     if (error) return res.status(500).json({ error: error.message });
     if (!data || data.length === 0) return res.status(404).json({ error: 'Lead list not found' });
@@ -233,7 +241,7 @@ app.put('/api/lead-lists/:id', authenticate, checkAdmin, async (req, res) => {
 
 app.delete('/api/lead-lists/:id', authenticate, checkAdmin, async (req, res) => {
     let query = supabase.from('lead_lists').delete().eq('id', req.params.id);
-    if (!isUserAdmin(req.user)) query = query.eq('user_id', req.user.id);
+    if (!isSuperAdmin(req.user)) query = query.eq('user_id', req.user.id);
     const { error } = await query;
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
@@ -318,7 +326,7 @@ app.post('/api/lead-lists/:id/leads/import', authenticate, checkAdmin, upload.si
 
 app.get('/api/campaigns/:id/leads', authenticate, async (req, res) => {
     let cQuery = supabase.from('campaigns').select('id, lead_list_ids').eq('id', req.params.id);
-    if (!isUserAdmin(req.user)) cQuery = cQuery.eq('user_id', req.user.id);
+    if (!isSuperAdmin(req.user)) cQuery = cQuery.eq('user_id', req.user.id);
     const { data: campaign } = await cQuery.single();
     if (!campaign) return res.status(403).json({ error: 'Access denied or campaign not found' });
 
@@ -334,7 +342,7 @@ app.get('/api/campaigns/:id/leads', authenticate, async (req, res) => {
 app.put('/api/leads/:id/status', authenticate, checkAdmin, async (req, res) => {
     const { status } = req.body;
     let lQuery = supabase.from('leads').select('*, campaigns!inner(user_id)').eq('id', req.params.id);
-    if (!isUserAdmin(req.user)) lQuery = lQuery.eq('campaigns.user_id', req.user.id);
+    if (!isSuperAdmin(req.user)) lQuery = lQuery.eq('campaigns.user_id', req.user.id);
     const { data: lead, error: leadError } = await lQuery.single();
     if (leadError || !lead) return res.status(403).json({ error: 'Access denied or lead not found' });
 
@@ -345,7 +353,7 @@ app.put('/api/leads/:id/status', authenticate, checkAdmin, async (req, res) => {
 
 app.put('/api/leads/:id', authenticate, checkAdmin, async (req, res) => {
     let lQuery = supabase.from('leads').select('*, campaigns!inner(user_id)').eq('id', req.params.id);
-    if (!isUserAdmin(req.user)) lQuery = lQuery.eq('campaigns.user_id', req.user.id);
+    if (!isSuperAdmin(req.user)) lQuery = lQuery.eq('campaigns.user_id', req.user.id);
     const { data: lead, error: leadError } = await lQuery.single();
     if (leadError || !lead) return res.status(403).json({ error: 'Access denied or lead not found' });
 
@@ -363,7 +371,7 @@ app.put('/api/leads/:id', authenticate, checkAdmin, async (req, res) => {
 
 app.get('/api/leads/by-email/:email', authenticate, checkAdmin, async (req, res) => {
     let query = supabase.from('leads').select('*, campaigns!inner(user_id)').eq('email', req.params.email);
-    if (!isUserAdmin(req.user)) query = query.eq('campaigns.user_id', req.user.id);
+    if (!isSuperAdmin(req.user)) query = query.eq('campaigns.user_id', req.user.id);
     const { data, error } = await query.limit(1);
     if (error) return res.status(500).json({ error: error.message });
     if (!data || data.length === 0) return res.status(404).json({ error: 'Lead not found' });
@@ -372,7 +380,7 @@ app.get('/api/leads/by-email/:email', authenticate, checkAdmin, async (req, res)
 
 app.delete('/api/leads/:id', authenticate, checkAdmin, async (req, res) => {
     let lQuery = supabase.from('leads').select('*, campaigns!inner(user_id)').eq('id', req.params.id);
-    if (!isUserAdmin(req.user)) lQuery = lQuery.eq('campaigns.user_id', req.user.id);
+    if (!isSuperAdmin(req.user)) lQuery = lQuery.eq('campaigns.user_id', req.user.id);
     const { data: lead, error: leadError } = await lQuery.single();
     if (leadError || !lead) return res.status(403).json({ error: 'Access denied' });
 
@@ -385,7 +393,7 @@ app.delete('/api/leads/:id', authenticate, checkAdmin, async (req, res) => {
 app.get('/api/logs', authenticate, async (req, res) => {
     try {
         let query;
-        if (isUserAdmin(req.user)) {
+        if (isSuperAdmin(req.user)) {
             // Admins see everything, no need for complex inner joins that might fail if relationships aren't perfect
             query = supabase.from('email_logs').select('*, campaigns(name, user_id), leads(email, company)');
         } else {
@@ -411,7 +419,7 @@ app.get('/api/logs', authenticate, async (req, res) => {
 app.get('/api/campaigns/:id/logs', authenticate, async (req, res) => {
     try {
         let cQuery = supabase.from('campaigns').select('id').eq('id', req.params.id);
-        if (!isUserAdmin(req.user)) cQuery = cQuery.eq('user_id', req.user.id);
+        if (!isSuperAdmin(req.user)) cQuery = cQuery.eq('user_id', req.user.id);
         const { data: campaign } = await cQuery.single();
         if (!campaign) return res.status(403).json({ error: 'Access denied' });
 
@@ -430,7 +438,7 @@ app.get('/api/campaigns/:id/logs', authenticate, async (req, res) => {
 app.post('/api/leads/:id/reply', authenticate, checkAdmin, async (req, res) => {
     const { subject, body } = req.body;
     let lQuery = supabase.from('leads').select('*, campaigns!inner(*)').eq('id', req.params.id);
-    if (!isUserAdmin(req.user)) lQuery = lQuery.eq('campaigns.user_id', req.user.id);
+    if (!isSuperAdmin(req.user)) lQuery = lQuery.eq('campaigns.user_id', req.user.id);
     const { data: lead, error: leadError } = await lQuery.single();
     if (leadError || !lead) return res.status(404).json({ error: 'Lead not found' });
 
@@ -449,7 +457,7 @@ app.post('/api/leads/:id/reply', authenticate, checkAdmin, async (req, res) => {
 // --- SUMMARY & TEST ---
 app.get('/api/summary', authenticate, async (req, res) => {
     try {
-        const isAdmin = isUserAdmin(req.user);
+        const isAdmin = isSuperAdmin(req.user);
         console.log(`Summary requested. User: ${req.user.email}, ID: ${req.user.id}, IsAdmin: ${isAdmin}`);
         
         let totalLeads = 0;
