@@ -4,7 +4,7 @@ import api from '../utils/api';
 import { supabase } from '../utils/supabase';
 import { 
   Upload, Trash2, ArrowLeft, CheckCircle2, XCircle, Mail, Clock, 
-  Camera, MessageCircle, Send, Briefcase, Globe, Phone, Plus, Settings, Activity, History
+  Camera, MessageCircle, Send, Briefcase, Globe, Phone, Plus, Settings, Activity, History, Edit
 } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
@@ -48,6 +48,8 @@ const CampaignDetail = () => {
   const [replyingTo, setReplyingTo] = useState(null);
   const [sendingReply, setSendingReply] = useState(false);
   const [replyForm, setReplyForm] = useState({ subject: '', body: '' });
+  const [editingLead, setEditingLead] = useState(null);
+  const [updatingLead, setUpdatingLead] = useState(false);
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -184,6 +186,21 @@ const CampaignDetail = () => {
     }
   };
 
+  const handleEditLead = async (e) => {
+    e.preventDefault();
+    setUpdatingLead(true);
+    try {
+      await api.put(`/leads/${editingLead.id}`, editingLead);
+      setEditingLead(null);
+      fetchData();
+      alert('Lead updated successfully!');
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update lead.');
+    } finally {
+      setUpdatingLead(false);
+    }
+  };
+
   if (loading) return <div className="p-8 text-center text-gray-500">Loading details...</div>;
 
   return (
@@ -284,6 +301,7 @@ const CampaignDetail = () => {
                     <td className="px-6 py-4 text-right">
                       {isAdmin && (
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => setEditingLead(lead)} title="Edit Lead" className="p-1.5 rounded-lg text-amber-500 hover:bg-amber-500/10 transition-colors"><Edit size={18} /></button>
                           <button onClick={() => openReplyModal(lead)} title="Direct Reply" className="p-1.5 rounded-lg text-primary hover:bg-primary/10 transition-colors"><Mail size={18} /></button>
                           <button onClick={() => updateStatus(lead.id, 'replied')} title="Mark Replied" className="p-1.5 rounded-lg text-green-500 hover:bg-green-500/10 transition-colors"><CheckCircle2 size={18} /></button>
                           <button onClick={() => handleDeleteLead(lead.id)} title="Delete" className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors"><Trash2 size={18} /></button>
@@ -444,6 +462,30 @@ const CampaignDetail = () => {
               <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Subject</label><input type="text" required value={replyForm.subject} onChange={(e) => setReplyForm({...replyForm, subject: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white" /></div>
               <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Message</label><textarea required rows={8} value={replyForm.body} onChange={(e) => setReplyForm({...replyForm, body: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white resize-none" /></div>
               <div className="flex justify-end gap-3 pt-4 border-t border-border"><button type="button" onClick={() => setReplyingTo(null)} className="btn btn-secondary">Cancel</button><button type="submit" disabled={sendingReply} className="btn btn-primary px-8 py-3">{sendingReply ? 'Sending...' : 'Send Reply'}</button></div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editingLead && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="glass w-full max-w-2xl rounded-3xl p-8 my-8">
+            <div className="flex justify-between items-center mb-6"><h3 className="text-2xl font-extrabold text-white">Edit Lead</h3><button onClick={() => setEditingLead(null)} className="text-gray-400 hover:text-white"><XCircle size={24} /></button></div>
+            <form onSubmit={handleEditLead} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Email</label><input type="email" required value={editingLead.email} onChange={(e) => setEditingLead({...editingLead, email: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Company</label><input type="text" required value={editingLead.company} onChange={(e) => setEditingLead({...editingLead, company: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Name</label><input type="text" value={editingLead.name || ''} onChange={(e) => setEditingLead({...editingLead, name: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Website</label><input type="text" value={editingLead.website || ''} onChange={(e) => setEditingLead({...editingLead, website: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Phone</label><input type="text" value={editingLead.phone || ''} onChange={(e) => setEditingLead({...editingLead, phone: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Instagram</label><input type="text" value={editingLead.instagram || ''} onChange={(e) => setEditingLead({...editingLead, instagram: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Facebook</label><input type="text" value={editingLead.facebook || ''} onChange={(e) => setEditingLead({...editingLead, facebook: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Twitter</label><input type="text" value={editingLead.twitter || ''} onChange={(e) => setEditingLead({...editingLead, twitter: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">LinkedIn</label><input type="text" value={editingLead.linkedin || ''} onChange={(e) => setEditingLead({...editingLead, linkedin: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Reviews Count</label><input type="number" value={editingLead.reviews || 0} onChange={(e) => setEditingLead({...editingLead, reviews: parseInt(e.target.value)})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Review Score</label><input type="number" step="0.1" value={editingLead.review_score || 0} onChange={(e) => setEditingLead({...editingLead, review_score: parseFloat(e.target.value)})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white" /></div>
+              </div>
+              <div className="flex justify-end gap-3 pt-6 border-t border-border"><button type="button" onClick={() => setEditingLead(null)} className="btn btn-secondary">Cancel</button><button type="submit" disabled={updatingLead} className="btn btn-primary min-w-[140px]">{updatingLead ? 'Updating...' : 'Update Lead'}</button></div>
             </form>
           </div>
         </div>

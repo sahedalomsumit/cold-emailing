@@ -77,37 +77,39 @@ async function sendEmail({ to, lead, subject, body, fromName, fromEmail }) {
     const { name, company, phone, website, reviews, review_score, instagram, facebook, twitter, linkedin } = lead || {};
     const safeName = name || 'there';
     const safeCompany = company || 'your company';
-    
+    console.log(`Sending email to ${to} using lead: ${lead?.email || 'N/A'}`);
+
     let personalizedSubject = subject
-        .replace(/{{name}}/g, safeName)
-        .replace(/{{company}}/g, safeCompany)
-        .replace(/{{email}}/g, lead?.email || to)
-        .replace(/{{phone}}/g, phone || '')
-        .replace(/{{website}}/g, website || '')
-        .replace(/{{reviews}}/g, reviews || '0')
-        .replace(/{{review_score}}/g, review_score || '0')
-        .replace(/{{instagram}}/g, instagram || '')
-        .replace(/{{facebook}}/g, facebook || '')
-        .replace(/{{twitter}}/g, twitter || '')
-        .replace(/{{linkedin}}/g, linkedin || '');
+        .replace(/{{[\s]*name[\s]*}}/gi, safeName)
+        .replace(/{{[\s]*company[\s]*}}/gi, safeCompany)
+        .replace(/{{[\s]*email[\s]*}}/gi, lead?.email || to)
+        .replace(/{{[\s]*phone[\s]*}}/gi, phone || '')
+        .replace(/{{[\s]*website[\s]*}}/gi, website || '')
+        .replace(/{{[\s]*reviews[\s]*}}/gi, reviews || '0')
+        .replace(/{{[\s]*review_score[\s]*}}/gi, review_score || '0')
+        .replace(/{{[\s]*instagram[\s]*}}/gi, instagram || '')
+        .replace(/{{[\s]*facebook[\s]*}}/gi, facebook || '')
+        .replace(/{{[\s]*twitter[\s]*}}/gi, twitter || '')
+        .replace(/{{[\s]*linkedin[\s]*}}/gi, linkedin || '');
 
     let personalizedBody = body
-        .replace(/{{name}}/g, safeName)
-        .replace(/{{company}}/g, safeCompany)
-        .replace(/{{email}}/g, lead?.email || to)
-        .replace(/{{phone}}/g, phone || '')
-        .replace(/{{website}}/g, website || '')
-        .replace(/{{reviews}}/g, reviews || '0')
-        .replace(/{{review_score}}/g, review_score || '0')
-        .replace(/{{instagram}}/g, instagram || '')
-        .replace(/{{facebook}}/g, facebook || '')
-        .replace(/{{twitter}}/g, twitter || '')
-        .replace(/{{linkedin}}/g, linkedin || '')
+        .replace(/{{[\s]*name[\s]*}}/gi, safeName)
+        .replace(/{{[\s]*company[\s]*}}/gi, safeCompany)
+        .replace(/{{[\s]*email[\s]*}}/gi, lead?.email || to)
+        .replace(/{{[\s]*phone[\s]*}}/gi, phone || '')
+        .replace(/{{[\s]*website[\s]*}}/gi, website || '')
+        .replace(/{{[\s]*reviews[\s]*}}/gi, reviews || '0')
+        .replace(/{{[\s]*review_score[\s]*}}/gi, review_score || '0')
+        .replace(/{{[\s]*instagram[\s]*}}/gi, instagram || '')
+        .replace(/{{[\s]*facebook[\s]*}}/gi, facebook || '')
+        .replace(/{{[\s]*twitter[\s]*}}/gi, twitter || '')
+        .replace(/{{[\s]*linkedin[\s]*}}/gi, linkedin || '')
         .replace(/\n/g, '<br/>');
 
     try {
         const mailOptions = {
-            from: `"${fromName || "OutreachOS"}" <${fromEmail || process.env.SMTP_USER}>`,
+            from: `"${fromName || "OutreachOS"}" <${process.env.SMTP_USER}>`,
+            replyTo: fromEmail || process.env.SMTP_USER,
             to: to,
             subject: personalizedSubject,
             html: `<html><body>${personalizedBody}</body></html>`
@@ -246,6 +248,33 @@ app.put('/api/leads/:id/status', authenticate, checkAdmin, async (req, res) => {
     res.json(data[0]);
 });
 
+app.put('/api/leads/:id', authenticate, checkAdmin, async (req, res) => {
+    let lQuery = supabase.from('leads').select('*, campaigns!inner(user_id)').eq('id', req.params.id);
+    if (!isUserAdmin(req.user)) lQuery = lQuery.eq('campaigns.user_id', req.user.id);
+    const { data: lead, error: leadError } = await lQuery.single();
+    if (leadError || !lead) return res.status(403).json({ error: 'Access denied or lead not found' });
+
+    const updateData = { ...req.body };
+    delete updateData.id;
+    delete updateData.campaign_id;
+    delete updateData.user_id;
+    delete updateData.created_at;
+    delete updateData.campaigns;
+
+    const { data, error } = await supabase.from('leads').update(updateData).eq('id', req.params.id).select();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json(data[0]);
+});
+
+app.get('/api/leads/by-email/:email', authenticate, checkAdmin, async (req, res) => {
+    let query = supabase.from('leads').select('*, campaigns!inner(user_id)').eq('email', req.params.email);
+    if (!isUserAdmin(req.user)) query = query.eq('campaigns.user_id', req.user.id);
+    const { data, error } = await query.limit(1);
+    if (error) return res.status(500).json({ error: error.message });
+    if (!data || data.length === 0) return res.status(404).json({ error: 'Lead not found' });
+    res.json(data[0]);
+});
+
 app.delete('/api/leads/:id', authenticate, checkAdmin, async (req, res) => {
     let lQuery = supabase.from('leads').select('*, campaigns!inner(user_id)').eq('id', req.params.id);
     if (!isUserAdmin(req.user)) lQuery = lQuery.eq('campaigns.user_id', req.user.id);
@@ -307,8 +336,37 @@ app.get('/api/summary', authenticate, async (req, res) => {
 });
 
 app.post('/api/send-test', authenticate, checkAdmin, async (req, res) => {
-    const { email, name, company, subject, body, fromEmail, fromName } = req.body;
-    const result = await sendEmail({ to: email, lead: { name, company }, subject, body, fromEmail, fromName });
+    const { email, subject, body, fromEmail, fromName, leadData } = req.body;
+    
+    let finalLeadData = leadData;
+
+    if (!finalLeadData) {
+        const { data: testLead } = await supabase
+            .from('leads')
+            .select('*')
+            .eq('email', 'sahedalomsumit@gmail.com')
+            .limit(1);
+
+        finalLeadData = (testLead && testLead.length > 0) ? testLead[0] : { 
+            name: 'Sahed Alom Sumit', 
+            company: 'OutreachOS',
+            email: 'sahedalomsumit@gmail.com',
+            website: 'outreachos.com',
+            phone: '+880123456789',
+            reviews: 150,
+            review_score: 4.9
+        };
+    }
+
+    const result = await sendEmail({ 
+        to: email, 
+        lead: finalLeadData, 
+        subject, 
+        body, 
+        fromEmail, 
+        fromName 
+    });
+
     if (result.success) res.json({ success: true });
     else res.status(500).json({ error: result.error });
 });

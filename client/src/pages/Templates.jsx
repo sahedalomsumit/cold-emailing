@@ -14,7 +14,10 @@ const Templates = () => {
     follow_up_2: { subject: '', body: '' }
   });
   const [saving, setSaving] = useState(false);
-  const [testEmail, setTestEmail] = useState('');
+  const [testEmail, setTestEmail] = useState('sahedalomsumit@gmail.com');
+  const [testLead, setTestLead] = useState(null);
+  const [leads, setLeads] = useState([]);
+  const [selectedLeadId, setSelectedLeadId] = useState('');
   const textareaRef = React.useRef(null);
 
   const fetchCampaigns = async () => {
@@ -32,12 +35,42 @@ const Templates = () => {
 
   useEffect(() => {
     fetchCampaigns();
+    // Fetch test lead data for preview
+    api.get('/leads/by-email/sahedalomsumit@gmail.com')
+      .then(res => setTestLead(res.data))
+      .catch(err => console.log('Test lead not found in database, using fallback.'));
   }, []);
 
   useEffect(() => {
     const c = campaigns.find(c => c.id === selectedCampaignId);
     if (c) setTemplates(c.templates);
+
+    if (selectedCampaignId) {
+      api.get(`/campaigns/${selectedCampaignId}/leads`).then(res => {
+        setLeads(res.data);
+        if (res.data.length > 0) {
+          const sahed = res.data.find(l => l.email === 'sahedalomsumit@gmail.com');
+          if (sahed) {
+            setSelectedLeadId(sahed.id);
+            setTestLead(sahed);
+          } else {
+            setSelectedLeadId(res.data[0].id);
+            setTestLead(res.data[0]);
+          }
+        } else {
+          setTestLead(null);
+          setSelectedLeadId('');
+        }
+      }).catch(console.error);
+    }
   }, [selectedCampaignId, campaigns]);
+
+  const handleLeadChange = (e) => {
+    const leadId = e.target.value;
+    setSelectedLeadId(leadId);
+    const lead = leads.find(l => l.id === leadId);
+    setTestLead(lead);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -65,8 +98,7 @@ const Templates = () => {
       
       await api.post('/send-test', {
         email: testEmail,
-        name: 'Test Lead',
-        company: 'Test Company',
+        leadData: testLead, // Send the full lead data for placeholders
         subject: templates[selectedType].subject,
         body: templates[selectedType].body,
         fromEmail: campaign?.from_email,
@@ -83,16 +115,30 @@ const Templates = () => {
 
   const replaceTags = (text) => {
     if (!text) return '';
+    const lead = testLead || {
+      name: 'Sahed Alom Sumit',
+      company: 'OutreachOS',
+      email: 'sahedalomsumit@gmail.com',
+      website: 'outreachos.com',
+      phone: '+880123456789',
+      reviews: 150,
+      review_score: 4.9,
+      instagram: '@sahedalom',
+      linkedin: 'linkedin.com/in/sahedalom'
+    };
+
     return text
-      .replace(/{{name}}/g, '<span class="text-primary font-bold">Test Lead</span>')
-      .replace(/{{company}}/g, '<span class="text-primary font-bold">Test Company</span>')
-      .replace(/{{email}}/g, '<span class="text-primary font-bold">test@example.com</span>')
-      .replace(/{{phone}}/g, '<span class="text-primary font-bold">+1 234 567 890</span>')
-      .replace(/{{website}}/g, '<span class="text-primary font-bold">example.com</span>')
-      .replace(/{{reviews}}/g, '<span class="text-primary font-bold">120</span>')
-      .replace(/{{review_score}}/g, '<span class="text-primary font-bold">4.8</span>')
-      .replace(/{{instagram}}/g, '<span class="text-primary font-bold">@test_insta</span>')
-      .replace(/{{linkedin}}/g, '<span class="text-primary font-bold">linkedin.com/in/test</span>');
+      .replace(/{{name}}/g, `<span class="text-primary font-bold">${lead.name || 'Name'}</span>`)
+      .replace(/{{company}}/g, `<span class="text-primary font-bold">${lead.company || 'Company'}</span>`)
+      .replace(/{{email}}/g, `<span class="text-primary font-bold">${lead.email || 'email@example.com'}</span>`)
+      .replace(/{{phone}}/g, `<span class="text-primary font-bold">${lead.phone || 'Phone'}</span>`)
+      .replace(/{{website}}/g, `<span class="text-primary font-bold">${lead.website || 'website.com'}</span>`)
+      .replace(/{{reviews}}/g, `<span class="text-primary font-bold">${lead.reviews || '0'}</span>`)
+      .replace(/{{review_score}}/g, `<span class="text-primary font-bold">${lead.review_score || '0.0'}</span>`)
+      .replace(/{{instagram}}/g, `<span class="text-primary font-bold">${lead.instagram || 'Instagram'}</span>`)
+      .replace(/{{facebook}}/g, `<span class="text-primary font-bold">${lead.facebook || 'Facebook'}</span>`)
+      .replace(/{{twitter}}/g, `<span class="text-primary font-bold">${lead.twitter || 'Twitter'}</span>`)
+      .replace(/{{linkedin}}/g, `<span class="text-primary font-bold">${lead.linkedin || 'LinkedIn'}</span>`);
   };
 
   const renderPreview = (text) => {
@@ -257,6 +303,16 @@ const Templates = () => {
             <h3 className="text-lg flex items-center gap-2">
               <Eye size={20} className="text-primary" /> Live Preview
             </h3>
+            <select 
+              value={selectedLeadId} 
+              onChange={handleLeadChange}
+              className="text-xs bg-card border border-border rounded-lg px-2 py-1 text-gray-400 outline-none focus:border-primary transition-all max-w-[150px]"
+            >
+              <option value="">Default Preview</option>
+              {leads.map(l => (
+                <option key={l.id} value={l.id}>{l.email}</option>
+              ))}
+            </select>
           </div>
           
           <div className="glass rounded-2xl p-8 min-h-[400px] border-primary/10 relative">
