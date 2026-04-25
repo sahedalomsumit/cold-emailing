@@ -128,7 +128,6 @@ const Templates = () => {
     };
 
     return text
-      .replace(/{{name}}/g, `<span class="text-primary font-bold">${lead.name || 'Name'}</span>`)
       .replace(/{{company}}/g, `<span class="text-primary font-bold">${lead.company || 'Company'}</span>`)
       .replace(/{{email}}/g, `<span class="text-primary font-bold">${lead.email || 'email@example.com'}</span>`)
       .replace(/{{phone}}/g, `<span class="text-primary font-bold">${lead.phone || 'Phone'}</span>`)
@@ -137,7 +136,6 @@ const Templates = () => {
       .replace(/{{review_score}}/g, `<span class="text-primary font-bold">${lead.review_score || '0.0'}</span>`)
       .replace(/{{instagram}}/g, `<span class="text-primary font-bold">${lead.instagram || 'Instagram'}</span>`)
       .replace(/{{facebook}}/g, `<span class="text-primary font-bold">${lead.facebook || 'Facebook'}</span>`)
-      .replace(/{{twitter}}/g, `<span class="text-primary font-bold">${lead.twitter || 'Twitter'}</span>`)
       .replace(/{{linkedin}}/g, `<span class="text-primary font-bold">${lead.linkedin || 'LinkedIn'}</span>`);
   };
 
@@ -281,7 +279,6 @@ const Templates = () => {
                 <span className="font-bold uppercase">Available tags:</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 opacity-80">
-                <span>{"{{name}}"}</span>
                 <span>{"{{company}}"}</span>
                 <span>{"{{email}}"}</span>
                 <span>{"{{phone}}"}</span>
@@ -290,7 +287,6 @@ const Templates = () => {
                 <span>{"{{review_score}}"}</span>
                 <span>{"{{instagram}}"}</span>
                 <span>{"{{facebook}}"}</span>
-                <span>{"{{twitter}}"}</span>
                 <span>{"{{linkedin}}"}</span>
               </div>
             </div>

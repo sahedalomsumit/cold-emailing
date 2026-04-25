@@ -210,6 +210,16 @@ app.post('/api/lead-lists', authenticate, checkAdmin, async (req, res) => {
     res.json(data[0]);
 });
 
+app.put('/api/lead-lists/:id', authenticate, checkAdmin, async (req, res) => {
+    const { name } = req.body;
+    let query = supabase.from('lead_lists').update({ name }).eq('id', req.params.id);
+    if (!isUserAdmin(req.user)) query = query.eq('user_id', req.user.id);
+    const { data, error } = await query.select();
+    if (error) return res.status(500).json({ error: error.message });
+    if (!data || data.length === 0) return res.status(404).json({ error: 'Lead list not found' });
+    res.json(data[0]);
+});
+
 app.delete('/api/lead-lists/:id', authenticate, checkAdmin, async (req, res) => {
     let query = supabase.from('lead_lists').delete().eq('id', req.params.id);
     if (!isUserAdmin(req.user)) query = query.eq('user_id', req.user.id);
@@ -233,19 +243,65 @@ app.post('/api/lead-lists/:id/leads', authenticate, checkAdmin, async (req, res)
 });
 
 app.post('/api/lead-lists/:id/leads/import', authenticate, checkAdmin, upload.single('file'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    
     const results = [];
-    fs.createReadStream(req.file.path).pipe(csv({ mapHeaders: ({ header }) => header.toLowerCase().trim() }))
+    const allowedColumns = ['email', 'company', 'website', 'phone', 'instagram', 'facebook', 'linkedin', 'reviews', 'review_score'];
+    
+    console.log(`Starting CSV import for list ${req.params.id}...`);
+    
+    fs.createReadStream(req.file.path)
+        .pipe(csv({ mapHeaders: ({ header }) => header.toLowerCase().trim() }))
         .on('data', (data) => {
-            if (data.email && data.company) {
-                results.push({ ...data, list_id: req.params.id, user_id: req.user.id, reviews: parseInt(data.reviews) || 0, review_score: parseFloat(data.review_score) || 0 });
+            if (data.email || data.phone) {
+                const filteredData = {
+                    list_id: req.params.id,
+                    user_id: req.user.id
+                };
+                
+                // Only include allowed columns
+                allowedColumns.forEach(col => {
+                    if (data[col] !== undefined) {
+                        if (col === 'reviews') filteredData[col] = parseInt(data[col]) || 0;
+                        else if (col === 'review_score') filteredData[col] = parseFloat(data[col]) || 0;
+                        else filteredData[col] = data[col];
+                    }
+                });
+                
+                results.push(filteredData);
             }
         })
-        .on('end', async () => {
-            if (results.length === 0) return res.status(400).json({ error: 'No valid leads found' });
-            const { data, error } = await supabase.from('leads').insert(results).select();
+        .on('error', (err) => {
+            console.error('CSV Stream Error:', err);
             if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-            if (error) return res.status(500).json({ error: error.message });
-            res.json({ count: data.length });
+            res.status(500).json({ error: 'Failed to process CSV file' });
+        })
+        .on('end', async () => {
+            console.log(`CSV parsed. Found ${results.length} valid rows.`);
+            if (results.length === 0) {
+                if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+                return res.status(400).json({ error: 'No valid leads found (Email or Phone required)' });
+            }
+            
+            try {
+                // Batch insert in chunks of 500 to be safe
+                const CHUNK_SIZE = 500;
+                let totalInserted = 0;
+                for (let i = 0; i < results.length; i += CHUNK_SIZE) {
+                    const chunk = results.slice(i, i + CHUNK_SIZE);
+                    const { error } = await supabase.from('leads').insert(chunk);
+                    if (error) throw error;
+                    totalInserted += chunk.length;
+                }
+                
+                console.log(`Successfully imported ${totalInserted} leads.`);
+                if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+                res.json({ count: totalInserted });
+            } catch (error) {
+                console.error('Supabase Import Error:', error.message);
+                if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+                res.status(500).json({ error: error.message });
+            }
         });
 });
 
@@ -376,7 +432,6 @@ app.post('/api/send-test', authenticate, checkAdmin, async (req, res) => {
             .limit(1);
 
         finalLeadData = (testLead && testLead.length > 0) ? testLead[0] : { 
-            name: 'Sahed Alom Sumit', 
             company: 'OutreachOS',
             email: 'sahedalomsumit@gmail.com',
             website: 'outreachos.com',
@@ -386,11 +441,32 @@ app.post('/api/send-test', authenticate, checkAdmin, async (req, res) => {
         };
     }
 
+    const replacements = {
+        '{{company}}': finalLeadData.company || '',
+        '{{email}}': finalLeadData.email || '',
+        '{{website}}': finalLeadData.website || '',
+        '{{phone}}': finalLeadData.phone || '',
+        '{{reviews}}': finalLeadData.reviews || '0',
+        '{{review_score}}': finalLeadData.review_score || '0',
+        '{{instagram}}': finalLeadData.instagram || '',
+        '{{facebook}}': finalLeadData.facebook || '',
+        '{{linkedin}}': finalLeadData.linkedin || ''
+    };
+
+    let personalizedSubject = subject;
+    let personalizedBody = body;
+
+    Object.keys(replacements).forEach(tag => {
+        const regex = new RegExp(tag, 'g');
+        personalizedSubject = personalizedSubject.replace(regex, replacements[tag]);
+        personalizedBody = personalizedBody.replace(regex, replacements[tag]);
+    });
+
     const result = await sendEmail({ 
         to: email, 
         lead: finalLeadData, 
-        subject, 
-        body, 
+        subject: personalizedSubject, 
+        body: personalizedBody, 
         fromEmail, 
         fromName 
     });

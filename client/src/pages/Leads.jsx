@@ -15,17 +15,23 @@ const Leads = () => {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newListName, setNewListName] = useState('');
+  const [showImportModal, setShowImportModal] = useState(false);
   const [importing, setImporting] = useState(false);
   const [csvPreview, setCsvPreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [manualAdd, setManualAdd] = useState(false);
   const [adding, setAdding] = useState(false);
   const [creatingList, setCreatingList] = useState(false);
+  const [showEditLeadModal, setShowEditLeadModal] = useState(false);
+  const [editingLead, setEditingLead] = useState(null);
   const [newLead, setNewLead] = useState({
-    name: '', email: '', company: '', website: '', phone: '',
-    instagram: '', facebook: '', twitter: '', linkedin: '',
+    email: '', company: '', website: '', phone: '',
+    instagram: '', facebook: '', linkedin: '',
     reviews: '', review_score: ''
   });
+
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editingName, setEditingName] = useState('');
 
   const fetchLists = async () => {
     try {
@@ -65,6 +71,21 @@ const Leads = () => {
       return () => supabase.removeChannel(channel);
     }
   }, [selectedList]);
+
+  const handleUpdateListName = async () => {
+    if (!editingName.trim() || editingName === selectedList.name) {
+      setIsEditingName(false);
+      return;
+    }
+    try {
+      const res = await api.put(`/lead-lists/${selectedList.id}`, { name: editingName.trim() });
+      setLists(lists.map(l => l.id === selectedList.id ? res.data : l));
+      setSelectedList(res.data);
+      setIsEditingName(false);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update list name.');
+    }
+  };
 
   const handleCreateList = async (e) => {
     e.preventDefault();
@@ -120,7 +141,7 @@ const Leads = () => {
     formData.append('file', selectedFile);
     try {
       await api.post(`/lead-lists/${selectedList.id}/leads/import`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      setSelectedFile(null); setCsvPreview(null); setImporting(false);
+      setSelectedFile(null); setCsvPreview(null); setImporting(false); setShowImportModal(false);
       fetchLeads(selectedList.id);
     } catch (err) {
       alert(err.response?.data?.error || 'Import failed.');
@@ -130,15 +151,31 @@ const Leads = () => {
 
   const handleManualAdd = async (e) => {
     e.preventDefault();
-    if (!newLead.email || !newLead.company) { alert('Email and Company are mandatory.'); return; }
+    if (!newLead.email && !newLead.phone) { alert('At least Email or Phone is required.'); return; }
     setAdding(true);
     try {
       await api.post(`/lead-lists/${selectedList.id}/leads`, newLead);
       setManualAdd(false);
-      setNewLead({ name: '', email: '', company: '', website: '', phone: '', instagram: '', facebook: '', twitter: '', linkedin: '', reviews: '', review_score: '' });
+      setNewLead({ email: '', company: '', website: '', phone: '', instagram: '', facebook: '', linkedin: '', reviews: '', review_score: '' });
       fetchLeads(selectedList.id);
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to add lead.');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleUpdateLead = async (e) => {
+    e.preventDefault();
+    if (!editingLead.email && !editingLead.phone) { alert('At least Email or Phone is required.'); return; }
+    setAdding(true);
+    try {
+      await api.put(`/leads/${editingLead.id}`, editingLead);
+      setShowEditLeadModal(false);
+      setEditingLead(null);
+      fetchLeads(selectedList.id);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update lead.');
     } finally {
       setAdding(false);
     }
@@ -193,13 +230,26 @@ const Leads = () => {
                     <List size={18} className={selectedList?.id === list.id ? 'text-white' : 'text-gray-500 group-hover:text-primary'} />
                     <span className="font-semibold text-sm truncate">{list.name}</span>
                   </div>
-                  {isAdmin && selectedList?.id === list.id && (
-                    <Trash2 
-                      size={14} 
-                      className="text-white/50 hover:text-white cursor-pointer transition-colors" 
-                      onClick={(e) => { e.stopPropagation(); handleDeleteList(list.id); }}
-                    />
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isAdmin && selectedList?.id === list.id && (
+                      <Edit 
+                        size={14} 
+                        className="text-white/50 hover:text-white cursor-pointer transition-colors" 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setEditingName(list.name); 
+                          setIsEditingName(true); 
+                        }}
+                      />
+                    )}
+                    {isAdmin && selectedList?.id === list.id && (
+                      <Trash2 
+                        size={14} 
+                        className="text-white/50 hover:text-white cursor-pointer transition-colors" 
+                        onClick={(e) => { e.stopPropagation(); handleDeleteList(list.id); }}
+                      />
+                    )}
+                  </div>
                 </button>
               ))}
               {lists.length === 0 && (
@@ -215,7 +265,36 @@ const Leads = () => {
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card/30 p-6 rounded-3xl border border-border/50">
                 <div>
-                  <h3 className="text-xl font-bold text-white">{selectedList.name}</h3>
+                  {isEditingName ? (
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        value={editingName} 
+                        onChange={(e) => setEditingName(e.target.value)} 
+                        className="bg-background border border-border rounded-lg px-3 py-1 text-white text-lg font-bold focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleUpdateListName();
+                          if (e.key === 'Escape') setIsEditingName(false);
+                        }}
+                      />
+                      <button onClick={handleUpdateListName} className="text-green-500 hover:text-green-400 p-1 transition-colors"><CheckCircle2 size={20}/></button>
+                      <button onClick={() => setIsEditingName(false)} className="text-red-500 hover:text-red-400 p-1 transition-colors"><XCircle size={20}/></button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 group">
+                      <h3 className="text-xl font-bold text-white">{selectedList.name}</h3>
+                      {isAdmin && (
+                        <button 
+                          onClick={() => { setIsEditingName(true); setEditingName(selectedList.name); }}
+                          className="text-gray-500 hover:text-white transition-all p-1"
+                          title="Edit List Name"
+                        >
+                          <Edit size={16} />
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <p className="text-sm text-gray-500">{leads.length} leads in this list</p>
                 </div>
                 {isAdmin && (
@@ -223,7 +302,7 @@ const Leads = () => {
                     <button onClick={() => setManualAdd(true)} className="btn btn-secondary text-xs py-2 flex-1 sm:flex-none flex items-center justify-center gap-2">
                       <Plus size={16} /> Add Lead
                     </button>
-                    <button onClick={() => setImporting(true)} className="btn btn-primary text-xs py-2 flex-1 sm:flex-none flex items-center justify-center gap-2">
+                    <button onClick={() => setShowImportModal(true)} className="btn btn-primary text-xs py-2 flex-1 sm:flex-none flex items-center justify-center gap-2">
                       <Upload size={16} /> Import CSV
                     </button>
                   </div>
@@ -245,10 +324,13 @@ const Leads = () => {
                       {leads.map(lead => (
                         <tr key={lead.id} className="hover:bg-card/30 transition-colors group text-sm">
                           <td className="px-6 py-4">
-                            <p className="font-bold text-white">{lead.name || 'N/A'}</p>
-                            <p className="text-xs text-gray-500">{lead.email}</p>
+                            <p className="font-bold text-white">{lead.company || 'No Company'}</p>
+                            <p className="text-xs text-gray-500">{lead.email || lead.phone || 'No Contact'}</p>
                           </td>
-                          <td className="px-6 py-4 text-gray-300">{lead.company}</td>
+                          <td className="px-6 py-4 text-gray-300">
+                            {lead.website && <div className="text-xs">Web: {lead.website}</div>}
+                            {lead.phone && <div className="text-xs">Tel: {lead.phone}</div>}
+                          </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               {lead.website && <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noreferrer" className="p-1 rounded bg-card border border-border text-gray-400 hover:text-primary"><Globe size={12} /></a>}
@@ -256,11 +338,26 @@ const Leads = () => {
                             </div>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            {isAdmin && (
-                              <button onClick={() => handleDeleteLead(lead.id)} className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all">
-                                <Trash2 size={16} />
-                              </button>
-                            )}
+                            <div className="flex justify-end gap-2">
+                              {isAdmin && (
+                                <button 
+                                  onClick={() => { setEditingLead(lead); setShowEditLeadModal(true); }} 
+                                  className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-card opacity-0 group-hover:opacity-100 transition-all"
+                                  title="Edit Lead"
+                                >
+                                  <Edit size={16} />
+                                </button>
+                              )}
+                              {isAdmin && (
+                                <button 
+                                  onClick={() => handleDeleteLead(lead.id)} 
+                                  className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                                  title="Delete Lead"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -311,10 +408,14 @@ const Leads = () => {
         </div>
       )}
 
-      {importing && (
+      {showImportModal && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="glass w-full max-w-xl rounded-3xl p-8">
             <h3 className="text-2xl mb-4 font-extrabold text-white">Import to {selectedList?.name}</h3>
+            <p className="text-sm text-gray-400 mb-6">
+              Upload a CSV file. <span className="text-white">EMAIL or PHONE</span> is required. 
+              All other fields are optional.
+            </p>
             {!csvPreview ? (
               <div className="border-2 border-dashed border-border rounded-2xl p-12 text-center relative">
                 <input type="file" accept=".csv" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
@@ -323,11 +424,15 @@ const Leads = () => {
               </div>
             ) : (
               <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-green-500 font-bold">✓ File: {selectedFile?.name}</p>
+                  <button onClick={() => { setCsvPreview(null); setSelectedFile(null); }} className="text-xs text-red-400 hover:text-red-300">Change File</button>
+                </div>
                 <div className="bg-card/50 rounded-xl border border-border p-4 max-h-48 overflow-y-auto">
                   <table className="w-full text-xs text-left">
-                    <tbody>
+                    <tbody className="divide-y divide-border/30">
                       {csvPreview.map((row, i) => (
-                        <tr key={i} className="border-b border-border last:border-0">
+                        <tr key={i} className="hover:bg-white/5 transition-colors">
                           {row.map((cell, j) => <td key={j} className="py-2 px-1 text-gray-400 truncate max-w-[100px]">{cell}</td>)}
                         </tr>
                       ))}
@@ -335,12 +440,16 @@ const Leads = () => {
                   </table>
                 </div>
                 <div className="flex justify-end gap-3">
-                  <button onClick={() => { setCsvPreview(null); setSelectedFile(null); }} className="btn btn-secondary">Clear</button>
-                  <button onClick={handleImport} disabled={importing} className="btn btn-primary">{importing ? 'Importing...' : 'Confirm Import'}</button>
+                  <button onClick={() => { setShowImportModal(false); setCsvPreview(null); setSelectedFile(null); }} className="btn btn-secondary" disabled={importing}>Cancel</button>
+                  <button onClick={handleImport} disabled={importing} className="btn btn-primary min-w-[140px]">
+                    {importing ? 'Importing...' : 'Confirm & Import'}
+                  </button>
                 </div>
               </div>
             )}
-            <button onClick={() => { setImporting(false); setCsvPreview(null); }} className="mt-4 text-xs text-gray-500 hover:text-white mx-auto block">Close</button>
+            {!importing && (
+              <button onClick={() => { setShowImportModal(false); setCsvPreview(null); }} className="mt-4 text-xs text-gray-500 hover:text-white mx-auto block">Close</button>
+            )}
           </div>
         </div>
       )}
@@ -351,17 +460,51 @@ const Leads = () => {
             <div className="flex justify-between items-center mb-6"><h3 className="text-2xl font-extrabold text-white">Add Lead to {selectedList?.name}</h3><button onClick={() => setManualAdd(false)} className="text-gray-400 hover:text-white"><XCircle size={24} /></button></div>
             <form onSubmit={handleManualAdd} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Email *</label><input type="email" required value={newLead.email} onChange={(e) => setNewLead({...newLead, email: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
-                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Company *</label><input type="text" required value={newLead.company} onChange={(e) => setNewLead({...newLead, company: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
-                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Name</label><input type="text" value={newLead.name} onChange={(e) => setNewLead({...newLead, name: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
-                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Website</label><input type="text" value={newLead.website} onChange={(e) => setNewLead({...newLead, website: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Email</label><input type="email" placeholder="john@company.com" value={newLead.email} onChange={(e) => setNewLead({...newLead, email: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Company</label><input type="text" placeholder="Company Name" value={newLead.company} onChange={(e) => setNewLead({...newLead, company: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Website</label><input type="text" placeholder="https://example.com" value={newLead.website} onChange={(e) => setNewLead({...newLead, website: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Phone</label><input type="text" placeholder="+123456789" value={newLead.phone} onChange={(e) => setNewLead({...newLead, phone: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Reviews</label><input type="number" placeholder="50" value={newLead.reviews} onChange={(e) => setNewLead({...newLead, reviews: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Review Score</label><input type="number" step="0.1" placeholder="4.5" value={newLead.review_score} onChange={(e) => setNewLead({...newLead, review_score: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Instagram</label><input type="text" placeholder="@handle" value={newLead.instagram} onChange={(e) => setNewLead({...newLead, instagram: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Facebook</label><input type="text" placeholder="facebook.com/page" value={newLead.facebook} onChange={(e) => setNewLead({...newLead, facebook: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">LinkedIn</label><input type="text" placeholder="linkedin.com/in/user" value={newLead.linkedin} onChange={(e) => setNewLead({...newLead, linkedin: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
               </div>
               <div className="flex justify-end gap-3 pt-6 border-t border-border"><button type="button" onClick={() => setManualAdd(false)} className="btn btn-secondary">Cancel</button><button type="submit" disabled={adding} className="btn btn-primary min-w-[140px]">{adding ? 'Adding...' : 'Save Lead'}</button></div>
             </form>
           </div>
         </div>
       )}
+
+      {showEditLeadModal && editingLead && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="glass w-full max-w-2xl rounded-3xl p-8 my-8">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-extrabold text-white">Edit Lead</h3>
+              <button onClick={() => setShowEditLeadModal(false)} className="text-gray-400 hover:text-white"><XCircle size={24} /></button>
+            </div>
+            <form onSubmit={handleUpdateLead} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Email</label><input type="email" placeholder="john@company.com" value={editingLead.email} onChange={(e) => setEditingLead({...editingLead, email: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Company</label><input type="text" placeholder="Company Name" value={editingLead.company} onChange={(e) => setEditingLead({...editingLead, company: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Website</label><input type="text" placeholder="https://example.com" value={editingLead.website || ''} onChange={(e) => setEditingLead({...editingLead, website: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Phone</label><input type="text" placeholder="+123456789" value={editingLead.phone || ''} onChange={(e) => setEditingLead({...editingLead, phone: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Reviews</label><input type="number" placeholder="50" value={editingLead.reviews || 0} onChange={(e) => setEditingLead({...editingLead, reviews: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Review Score</label><input type="number" step="0.1" placeholder="4.5" value={editingLead.review_score || 0} onChange={(e) => setEditingLead({...editingLead, review_score: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Instagram</label><input type="text" placeholder="@handle" value={editingLead.instagram || ''} onChange={(e) => setEditingLead({...editingLead, instagram: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Facebook</label><input type="text" placeholder="facebook.com/page" value={editingLead.facebook || ''} onChange={(e) => setEditingLead({...editingLead, facebook: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">LinkedIn</label><input type="text" placeholder="linkedin.com/in/user" value={editingLead.linkedin || ''} onChange={(e) => setEditingLead({...editingLead, linkedin: e.target.value})} className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none" /></div>
+              </div>
+              <div className="flex justify-end gap-3 pt-6 border-t border-border">
+                <button type="button" onClick={() => setShowEditLeadModal(false)} className="btn btn-secondary">Cancel</button>
+                <button type="submit" disabled={adding} className="btn btn-primary min-w-[140px]">{adding ? 'Updating...' : 'Update Lead'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
+
   );
 };
 
