@@ -30,6 +30,8 @@ const Leads = () => {
     reviews: '', review_score: ''
   });
 
+  const [searchTerm, setSearchTerm] = useState('');
+
   const [isEditingName, setIsEditingName] = useState(false);
   const [editingName, setEditingName] = useState('');
 
@@ -298,7 +300,17 @@ const Leads = () => {
                   <p className="text-sm text-gray-500">{leads.length} leads in this list</p>
                 </div>
                 {isAdmin && (
-                  <div className="flex gap-2 w-full sm:w-auto">
+                  <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                    <div className="relative flex-1 min-w-[200px]">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                      <input 
+                        type="text" 
+                        placeholder="Search leads..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-2 text-xs text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      />
+                    </div>
                     <button onClick={() => setManualAdd(true)} className="btn btn-secondary text-xs py-2 flex-1 sm:flex-none flex items-center justify-center gap-2">
                       <Plus size={16} /> Add Lead
                     </button>
@@ -321,7 +333,12 @@ const Leads = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
-                      {leads.map(lead => (
+                      {leads
+                        .filter(l => 
+                          (l.company?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
+                          (l.email?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+                        )
+                        .map(lead => (
                         <tr key={lead.id} className="hover:bg-card/30 transition-colors group text-sm">
                           <td className="px-6 py-4">
                             <p className="font-bold text-white">{lead.company || 'No Company'}</p>

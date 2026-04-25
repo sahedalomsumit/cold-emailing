@@ -65,15 +65,6 @@ const CampaignCard = ({ campaign, onToggle, onDelete }) => {
             >
               {campaign.active ? <Pause size={18} /> : <Play size={18} />}
             </button>
-            <button className="p-2 rounded-lg border border-border hover:border-primary text-gray-400 hover:text-white transition-colors">
-              <Edit2 size={18} />
-            </button>
-            <button
-              onClick={() => onDelete(campaign.id)}
-              className="p-2 rounded-lg border border-border hover:border-red-500 text-gray-400 hover:text-red-500 transition-colors"
-            >
-              <Trash2 size={18} />
-            </button>
           </div>
         )}
         <button

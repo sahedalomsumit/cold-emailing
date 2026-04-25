@@ -159,7 +159,7 @@ const Dashboard = () => {
                       {log.type} {log.status}
                     </span>
                     <p className="text-[10px] text-gray-600 mt-1">
-                      {new Date(log.sent_at).toLocaleTimeString()}
+                      {new Date(log.sent_at || log.created_at).toLocaleTimeString()}
                     </p>
                   </div>
                 </div>

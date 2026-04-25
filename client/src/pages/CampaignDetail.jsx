@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { supabase } from '../utils/supabase';
 import { 
   Upload, Trash2, ArrowLeft, CheckCircle2, XCircle, Mail, Clock, 
-  Camera, MessageCircle, Send, Briefcase, Globe, Phone, Plus, Settings, Activity, History, Edit
+  Camera, MessageCircle, Send, Briefcase, Globe, Phone, Plus, Settings, Activity, History, Edit, Search
 } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
@@ -24,6 +24,7 @@ const StatusBadge = ({ status }) => {
 
 const CampaignDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const [campaign, setCampaign] = useState(null);
   const [leads, setLeads] = useState([]);
@@ -40,6 +41,7 @@ const CampaignDetail = () => {
     reviews: '', review_score: ''
   });
   const [activeTab, setActiveTab] = useState('activity');
+  const [searchTerm, setSearchTerm] = useState('');
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsData, setSettingsData] = useState({
     name: '', sender_name: '', from_email: '',
@@ -72,6 +74,33 @@ const CampaignDetail = () => {
       alert(`Error loading campaign: ${msg}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateSettings = async (e) => {
+    e.preventDefault();
+    setSavingSettings(true);
+    try {
+      await api.put(`/campaigns/${id}`, settingsData);
+      setCampaign({ ...campaign, ...settingsData });
+      alert('Settings updated successfully!');
+      fetchData(); // Refresh to ensure everything is in sync
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || 'Failed to update settings');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleDeleteCampaign = async () => {
+    if (!window.confirm('Are you sure you want to delete this campaign and all its leads? This action cannot be undone.')) return;
+    try {
+      await api.delete(`/campaigns/${id}`);
+      navigate('/campaigns');
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || 'Failed to delete campaign');
     }
   };
 
@@ -126,7 +155,7 @@ const CampaignDetail = () => {
 
       {/* Tabs */}
       <div className="flex gap-2 p-1 bg-card/50 border border-border rounded-xl w-fit">
-        {['activity', 'settings'].map(tab => (
+        {['activity', 'leads', 'settings'].map(tab => (
           <button 
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -160,17 +189,95 @@ const CampaignDetail = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="font-bold text-white">{log.leads?.name}</p>
+                      <p className="font-bold text-white">{log.leads?.name || log.leads?.company}</p>
                       <p className="text-[10px] text-gray-500">{log.leads?.email}</p>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`text-xs font-bold uppercase ${log.status === 'sent' ? 'text-green-500' : 'text-red-500'}`}>{log.status}</span>
                     </td>
-                    <td className="px-6 py-4 text-right text-xs text-gray-500 font-mono">{new Date(log.sent_at).toLocaleString()}</td>
+                    <td className="px-6 py-4 text-right text-xs text-gray-500 font-mono">{new Date(log.sent_at || log.created_at).toLocaleString()}</td>
                   </tr>
                 ))}
+                {activityLogs.length === 0 && (
+                  <tr>
+                    <td colSpan="4" className="px-6 py-20 text-center text-gray-500 italic">No activity logs yet.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'leads' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="glass rounded-3xl p-6 border border-border/50">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+              <div>
+                <h3 className="text-xl font-extrabold text-white">Campaign Leads</h3>
+                <p className="text-sm text-gray-400">Leads from selected lead lists.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+                  <input 
+                    type="text" 
+                    placeholder="Search leads..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-2 text-xs text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  />
+                </div>
+                <button 
+                  onClick={() => setActiveTab('settings')}
+                  className="btn btn-secondary text-xs flex items-center gap-2"
+                >
+                  <Plus size={16} /> Manage Lead Lists
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-card/80 border-b border-border">
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Company</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Email Address</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Status</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-right">Follow-ups</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {leads
+                    .filter(l => 
+                      (l.company?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
+                      (l.email?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+                    )
+                    .map(lead => (
+                    <tr key={lead.id} className="hover:bg-card/30 transition-colors text-sm">
+                      <td className="px-6 py-4">
+                        <p className="font-bold text-white">{lead.company || 'N/A'}</p>
+                        <p className="text-[10px] text-gray-500">{lead.name}</p>
+                      </td>
+                      <td className="px-6 py-4 text-gray-300">
+                        <p className="font-semibold">{lead.email}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={lead.status} />
+                      </td>
+                      <td className="px-6 py-4 text-right font-mono text-white">{lead.follow_ups || 0}</td>
+                    </tr>
+                  ))}
+                  {leads.length === 0 && (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-20 text-center text-gray-500 italic">
+                        No leads found. Make sure you have selected lead lists in the Settings tab.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -210,6 +317,7 @@ const CampaignDetail = () => {
                   placeholder={campaign?.from_email || 'hello@example.com'}
                   value={settingsData.from_email || ''} 
                   onChange={(e) => setSettingsData({...settingsData, from_email: e.target.value})} 
+                  className="w-full bg-card border border-border rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                 />
               </div>
             </div>
@@ -237,8 +345,17 @@ const CampaignDetail = () => {
                 )}
               </div>
             </div>
-            <div className="pt-6 border-t border-border">
+            <div className="pt-6 border-t border-border flex flex-col sm:flex-row justify-between gap-4">
               <button type="submit" disabled={savingSettings} className="btn btn-primary px-8 py-3">{savingSettings ? 'Saving...' : 'Save Changes'}</button>
+              {isAdmin && (
+                <button 
+                  type="button" 
+                  onClick={handleDeleteCampaign}
+                  className="px-6 py-3 rounded-xl border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white transition-all duration-200 font-bold text-sm flex items-center justify-center gap-2"
+                >
+                  <Trash2 size={18} /> Delete Campaign
+                </button>
+              )}
             </div>
           </form>
         </div>

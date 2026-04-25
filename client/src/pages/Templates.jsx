@@ -18,6 +18,8 @@ const Templates = () => {
   const [testLead, setTestLead] = useState(null);
   const [leads, setLeads] = useState([]);
   const [selectedLeadId, setSelectedLeadId] = useState('');
+  const [leadLists, setLeadLists] = useState([]);
+  const [previewListId, setPreviewListId] = useState('');
   const textareaRef = React.useRef(null);
 
   const fetchCampaigns = async () => {
@@ -39,31 +41,54 @@ const Templates = () => {
     api.get('/leads/by-email/sahedalomsumit@gmail.com')
       .then(res => setTestLead(res.data))
       .catch(err => console.log('Test lead not found in database, using fallback.'));
+    
+    api.get('/lead-lists').then(res => {
+      setLeadLists(res.data);
+      // Look for a test list automatically
+      const testList = res.data.find(l => l.name.toLowerCase().includes('test'));
+      if (testList) setPreviewListId(testList.id);
+    }).catch(console.error);
   }, []);
 
   useEffect(() => {
     const c = campaigns.find(c => c.id === selectedCampaignId);
     if (c) setTemplates(c.templates);
+  }, [selectedCampaignId, campaigns]);
 
-    if (selectedCampaignId) {
-      api.get(`/campaigns/${selectedCampaignId}/leads`).then(res => {
-        setLeads(res.data);
-        if (res.data.length > 0) {
-          const sahed = res.data.find(l => l.email === 'sahedalomsumit@gmail.com');
+  useEffect(() => {
+    const fetchLeadsForPreview = async () => {
+      try {
+        const listsRes = await api.get('/lead-lists');
+        const testList = listsRes.data.find(l => l.name.toLowerCase().includes('test'));
+        
+        let targetLeads = [];
+        if (testList) {
+          const leadsRes = await api.get(`/lead-lists/${testList.id}/leads`);
+          targetLeads = leadsRes.data;
+        } else if (selectedCampaignId) {
+          const leadsRes = await api.get(`/campaigns/${selectedCampaignId}/leads`);
+          targetLeads = leadsRes.data;
+        }
+
+        setLeads(targetLeads);
+        if (targetLeads.length > 0) {
+          // Try to find the admin lead first
+          const sahed = targetLeads.find(l => l.email === 'sahedalomsumit@gmail.com');
           if (sahed) {
             setSelectedLeadId(sahed.id);
             setTestLead(sahed);
           } else {
-            setSelectedLeadId(res.data[0].id);
-            setTestLead(res.data[0]);
+            setSelectedLeadId(targetLeads[0].id);
+            setTestLead(targetLeads[0]);
           }
-        } else {
-          setTestLead(null);
-          setSelectedLeadId('');
         }
-      }).catch(console.error);
-    }
-  }, [selectedCampaignId, campaigns]);
+      } catch (err) {
+        console.error('Error fetching preview leads:', err);
+      }
+    };
+
+    fetchLeadsForPreview();
+  }, [selectedCampaignId]);
 
   const handleLeadChange = (e) => {
     const leadId = e.target.value;
@@ -299,16 +324,18 @@ const Templates = () => {
             <h3 className="text-lg flex items-center gap-2">
               <Eye size={20} className="text-primary" /> Live Preview
             </h3>
-            <select 
-              value={selectedLeadId} 
-              onChange={handleLeadChange}
-              className="text-xs bg-card border border-border rounded-lg px-2 py-1 text-gray-400 outline-none focus:border-primary transition-all max-w-[150px]"
-            >
-              <option value="">Default Preview</option>
-              {leads.map(l => (
-                <option key={l.id} value={l.id}>{l.email}</option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select 
+                value={selectedLeadId} 
+                onChange={handleLeadChange}
+                className="text-xs bg-card border border-border rounded-lg px-2 py-1 text-gray-400 outline-none focus:border-primary transition-all max-w-[200px]"
+              >
+                <option value="">Select Preview Lead</option>
+                {leads.map(l => (
+                  <option key={l.id} value={l.id}>{l.email} ({l.company || 'No Company'})</option>
+                ))}
+              </select>
+            </div>
           </div>
           
           <div className="glass rounded-2xl p-8 min-h-[400px] border-primary/10 relative">

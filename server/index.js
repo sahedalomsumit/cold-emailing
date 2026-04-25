@@ -372,22 +372,48 @@ app.delete('/api/leads/:id', authenticate, checkAdmin, async (req, res) => {
 
 // --- LOGS & REPLIES ---
 app.get('/api/logs', authenticate, async (req, res) => {
-    let query = supabase.from('email_logs').select('*, campaigns!inner(name, user_id), leads(email, name)');
-    if (!isUserAdmin(req.user)) query = query.eq('campaigns.user_id', req.user.id);
-    const { data, error } = await query.order('sent_at', { ascending: false });
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data);
+    try {
+        let query;
+        if (isUserAdmin(req.user)) {
+            // Admins see everything, no need for complex inner joins that might fail if relationships aren't perfect
+            query = supabase.from('email_logs').select('*, campaigns(name, user_id), leads(email, name)');
+        } else {
+            // Regular users only see their own logs via campaign link
+            query = supabase.from('email_logs').select('*, campaigns!inner(name, user_id), leads(email, name)')
+                .eq('campaigns.user_id', req.user.id);
+        }
+
+        // Use created_at if sent_at is missing, or try both
+        const { data, error } = await query.order('created_at', { ascending: false });
+        
+        if (error) {
+            console.error('Supabase logs error:', error);
+            return res.status(500).json({ error: error.message });
+        }
+        res.json(data);
+    } catch (err) {
+        console.error('Logs route crash:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.get('/api/campaigns/:id/logs', authenticate, async (req, res) => {
-    let cQuery = supabase.from('campaigns').select('id').eq('id', req.params.id);
-    if (!isUserAdmin(req.user)) cQuery = cQuery.eq('user_id', req.user.id);
-    const { data: campaign } = await cQuery.single();
-    if (!campaign) return res.status(403).json({ error: 'Access denied' });
+    try {
+        let cQuery = supabase.from('campaigns').select('id').eq('id', req.params.id);
+        if (!isUserAdmin(req.user)) cQuery = cQuery.eq('user_id', req.user.id);
+        const { data: campaign } = await cQuery.single();
+        if (!campaign) return res.status(403).json({ error: 'Access denied' });
 
-    const { data, error } = await supabase.from('email_logs').select('*, leads(email, name)').eq('campaign_id', req.params.id).order('sent_at', { ascending: false });
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data);
+        const { data, error } = await supabase.from('email_logs')
+            .select('*, leads(email, name)')
+            .eq('campaign_id', req.params.id)
+            .order('created_at', { ascending: false });
+            
+        if (error) return res.status(500).json({ error: error.message });
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.post('/api/leads/:id/reply', authenticate, checkAdmin, async (req, res) => {
@@ -412,11 +438,38 @@ app.post('/api/leads/:id/reply', authenticate, checkAdmin, async (req, res) => {
 // --- SUMMARY & TEST ---
 app.get('/api/summary', authenticate, async (req, res) => {
     try {
-        const { count: totalLeads } = await supabase.from('leads').select('*', { count: 'exact', head: true }).eq('user_id', req.user.id);
-        const { count: contacted } = await supabase.from('leads').select('*', { count: 'exact', head: true }).eq('user_id', req.user.id).neq('status', 'pending');
-        const { count: replied } = await supabase.from('leads').select('*', { count: 'exact', head: true }).eq('user_id', req.user.id).eq('status', 'replied');
-        res.json({ totalLeads: totalLeads || 0, contacted: contacted || 0, replied: replied || 0, replyRate: contacted > 0 ? ((replied / contacted) * 100).toFixed(1) : 0 });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+        const isAdmin = isUserAdmin(req.user);
+        
+        let totalQuery = supabase.from('leads').select('*', { count: 'exact', head: true });
+        let contactedQuery = supabase.from('leads').select('*', { count: 'exact', head: true }).neq('status', 'pending');
+        let repliedQuery = supabase.from('leads').select('*', { count: 'exact', head: true }).eq('status', 'replied');
+
+        if (!isAdmin) {
+            totalQuery = totalQuery.eq('user_id', req.user.id);
+            contactedQuery = contactedQuery.eq('user_id', req.user.id);
+            repliedQuery = repliedQuery.eq('user_id', req.user.id);
+        }
+
+        const [
+            { count: totalLeads },
+            { count: contacted },
+            { count: replied }
+        ] = await Promise.all([
+            totalQuery,
+            contactedQuery,
+            repliedQuery
+        ]);
+
+        res.json({ 
+            totalLeads: totalLeads || 0, 
+            contacted: contacted || 0, 
+            replied: replied || 0, 
+            replyRate: contacted > 0 ? ((replied / contacted) * 100).toFixed(1) : 0 
+        });
+    } catch (err) { 
+        console.error('Summary error:', err);
+        res.status(500).json({ error: err.message }); 
+    }
 });
 
 app.post('/api/send-test', authenticate, checkAdmin, async (req, res) => {
