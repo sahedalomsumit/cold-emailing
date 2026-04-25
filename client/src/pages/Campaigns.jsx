@@ -79,7 +79,7 @@ const CampaignCard = ({ campaign, onToggle, onDelete }) => {
 };
 
 const Campaigns = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [campaigns, setCampaigns] = useState([]);
   const [leadLists, setLeadLists] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -139,6 +139,33 @@ const Campaigns = () => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  useEffect(() => {
+    if (showModal && user) {
+      setNewCampaign({
+        name: "",
+        sender_name: user.user_metadata?.full_name || "",
+        from_email: user.email || "hello@outreach.sahedalomsumit.com",
+        follow_up_delays: [3, 7],
+        max_follow_ups: 2,
+        lead_list_ids: [],
+        templates: {
+          initial: {
+            subject: "Quick question for {{name}}",
+            body: "Hi {{name}},\n\nI saw what you are doing at {{company}}...",
+          },
+          follow_up_1: {
+            subject: "Re: Quick question",
+            body: "Just following up on my previous email...",
+          },
+          follow_up_2: {
+            subject: "Checking in",
+            body: "Wanted to bubble this to the top...",
+          },
+        },
+      });
+    }
+  }, [showModal, user]);
 
   const handleCreate = async (e) => {
     e.preventDefault();

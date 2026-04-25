@@ -119,7 +119,7 @@ const Layout = ({ children }) => {
 };
 
 const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   
   if (loading) {
     return (
@@ -129,7 +129,7 @@ const ProtectedRoute = ({ children }) => {
     );
   }
   
-  if (!user) return <Navigate to="/auth" />;
+  if (!user || !isAdmin) return <Navigate to="/auth" />;
   
   return <Layout>{children}</Layout>;
 };

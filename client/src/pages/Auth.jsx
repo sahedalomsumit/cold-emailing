@@ -180,22 +180,9 @@ const Auth = () => {
           </form>
 
           <div className="mt-8 pt-6 border-t border-white/5 text-center">
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-gray-400 hover:text-white transition-colors"
-            >
-              {isLogin ? (
-                <>
-                  Don't have an account?{" "}
-                  <span className="text-primary font-bold">Sign Up</span>
-                </>
-              ) : (
-                <>
-                  Already have an account?{" "}
-                  <span className="text-primary font-bold">Sign In</span>
-                </>
-              )}
-            </button>
+            <p className="text-xs text-gray-500 uppercase tracking-widest font-bold">
+              Restricted Access
+            </p>
           </div>
         </div>
       </div>

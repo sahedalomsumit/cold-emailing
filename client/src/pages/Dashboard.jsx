@@ -71,21 +71,23 @@ const Dashboard = () => {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "leads" },
-        fetchData,
+        () => setTimeout(fetchData, 1000),
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "email_logs" },
-        fetchData,
+        () => setTimeout(fetchData, 1000),
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "campaigns" },
-        fetchData,
+        () => setTimeout(fetchData, 1000),
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return (

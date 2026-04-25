@@ -56,7 +56,7 @@ const authenticate = async (req, res, next) => {
 };
 
 const isUserAdmin = (user) => {
-    const ADMIN_EMAIL = 'sahedalomsumit@gmail.com';
+    const ADMIN_EMAIL = 'sahedalomsumit@zohomail.eu';
     return user?.email === ADMIN_EMAIL || user?.user_metadata?.email === ADMIN_EMAIL;
 };
 
@@ -516,6 +516,10 @@ app.get('/api/summary', authenticate, async (req, res) => {
             });
         }
 
+        console.log(`[Summary] Response for ${req.user.email}:`, { 
+            totalLeads, contacted, replied, totalLists, totalCampaigns, dailyCount 
+        });
+
         res.json({ 
             totalLeads, 
             contacted, 
@@ -540,12 +544,12 @@ app.post('/api/send-test', authenticate, checkAdmin, async (req, res) => {
         const { data: testLead } = await supabase
             .from('leads')
             .select('*')
-            .eq('email', 'sahedalomsumit@gmail.com')
+            .eq('email', 'sahedalomsumit@zohomail.eu')
             .limit(1);
 
         finalLeadData = (testLead && testLead.length > 0) ? testLead[0] : { 
             company: 'OutreachOS',
-            email: 'sahedalomsumit@gmail.com',
+            email: 'sahedalomsumit@zohomail.eu',
             website: 'outreachos.com',
             phone: '+880123456789',
             reviews: 150,

@@ -65,7 +65,7 @@ export const AuthProvider = ({ children }) => {
     return supabase.auth.updateUser({ password });
   };
 
-  const isAdmin = user?.email === 'sahedalomsumit@gmail.com';
+  const isAdmin = user?.email === 'sahedalomsumit@zohomail.eu';
 
   return (
     <AuthContext.Provider value={{ user, loading, signup, login, logout, isAdmin, updateProfile, updateEmail, updatePassword }}>
