@@ -16,14 +16,25 @@ const PORT = process.env.PORT || 4000;
 // Supabase Setup
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// Middleware
 app.use(cors({
     origin: (origin, callback) => {
-        const allowedOrigin = process.env.CLIENT_URL?.replace(/\/$/, '');
-        if (!origin || origin.startsWith(allowedOrigin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
+        const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+        
+        // If no origin (like mobile apps or curl requests), allow it
+        if (!origin) return callback(null, true);
+
+        try {
+            const allowedOrigin = new URL(clientUrl).origin;
+            const currentOrigin = new URL(origin).origin;
+
+            if (currentOrigin === allowedOrigin || currentOrigin.includes('localhost')) {
+                callback(null, true);
+            } else {
+                console.warn(`CORS: Origin ${origin} not allowed. Expected ${allowedOrigin}`);
+                callback(new Error('Not allowed by CORS'));
+            }
+        } catch (err) {
+            callback(null, true); // Fallback to allow if URL parsing fails
         }
     },
     credentials: true
