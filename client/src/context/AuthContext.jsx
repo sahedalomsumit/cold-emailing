@@ -23,15 +23,15 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signup = (email, password, fullName) => {
-    return supabase.auth.signUp({
+  const signup = async (email, password, fullName) => {
+    return await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin + window.location.pathname,
         data: {
           full_name: fullName,
         },
+        emailRedirectTo: "https://sahedalomsumit.github.io/outreach-os/",
       },
     });
   };
@@ -53,7 +53,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updateEmail = async (email) => {
-    return supabase.auth.updateUser({ email });
+    return await supabase.auth.updateUser(
+      { email },
+      {
+        emailRedirectTo: "https://sahedalomsumit.github.io/outreach-os/",
+      }
+    );
   };
 
   const updatePassword = async (password) => {
