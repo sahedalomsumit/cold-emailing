@@ -16,7 +16,7 @@ import {
   PlayCircle,
 } from "lucide-react";
 
-const CampaignCard = ({ campaign, onToggle, onDelete, onRun }) => {
+const CampaignCard = ({ campaign, onToggle, onDelete }) => {
   const navigate = useNavigate();
   const { isSuperAdmin } = useAuth();
 
@@ -62,17 +62,24 @@ const CampaignCard = ({ campaign, onToggle, onDelete, onRun }) => {
           <div className="flex gap-2">
             <button
               onClick={() => onToggle(campaign)}
-              title={campaign.active ? "Pause Campaign" : "Activate Campaign"}
-              className={`p-2 rounded-lg border border-border hover:border-primary transition-colors ${campaign.active ? "text-amber-500" : "text-green-500"}`}
+              title={campaign.active ? "Pause Campaign" : "Activate & Run Campaign"}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border border-border transition-all duration-200 ${
+                campaign.active 
+                  ? "text-amber-500 hover:bg-amber-500/10" 
+                  : "text-green-500 hover:bg-green-500/10 border-green-500/30"
+              }`}
             >
-              {campaign.active ? <Pause size={18} /> : <Play size={18} />}
-            </button>
-            <button
-              onClick={() => onRun(campaign)}
-              title="Run Campaign Now"
-              className="p-2 rounded-lg border border-border hover:border-primary text-primary transition-colors"
-            >
-              <PlayCircle size={18} />
+              {campaign.active ? (
+                <>
+                  <Pause size={18} />
+                  <span className="text-xs font-bold uppercase">Pause</span>
+                </>
+              ) : (
+                <>
+                  <Play size={18} />
+                  <span className="text-xs font-bold uppercase">Activate & Run</span>
+                </>
+              )}
             </button>
           </div>
         )}
@@ -199,17 +206,7 @@ const Campaigns = () => {
     }
   };
 
-  const handleRun = async (campaign) => {
-    if (!window.confirm(`Immediately process leads for "${campaign.name}"?`)) return;
-    try {
-      const res = await api.post(`/campaigns/${campaign.id}/run`);
-      alert(`Processed ${res.data.processed} emails. Errors: ${res.data.errors}`);
-      fetchCampaigns();
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.error || 'Failed to run campaign');
-    }
-  };
+
 
   const handleDelete = async (id) => {
     if (
@@ -252,7 +249,6 @@ const Campaigns = () => {
             campaign={c}
             onToggle={handleToggle}
             onDelete={handleDelete}
-            onRun={handleRun}
           />
         ))}
         {campaigns.length === 0 && (

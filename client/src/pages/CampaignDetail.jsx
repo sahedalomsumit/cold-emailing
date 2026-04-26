@@ -4,7 +4,7 @@ import api from '../utils/api';
 import { supabase } from '../utils/supabase';
 import { 
   Upload, Trash2, ArrowLeft, CheckCircle2, XCircle, Mail, Clock, 
-  Camera, MessageCircle, Send, Briefcase, Globe, Phone, Plus, Settings, Activity, History, Edit, Search, PlayCircle, Rocket
+  Camera, MessageCircle, Send, Briefcase, Globe, Phone, Plus, Settings, Activity, History, Edit, Search, PlayCircle, Rocket, BarChart3
 } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
@@ -17,7 +17,8 @@ const StatusBadge = ({ status }) => {
     follow_up_2: 'bg-orange-500/10 text-orange-500',
     replied: 'bg-green-500/10 text-green-400',
     bounced: 'bg-red-500/10 text-red-400',
-    completed: 'bg-slate-500/10 text-slate-400'
+    completed: 'bg-slate-500/10 text-slate-400',
+    unsubscribed: 'bg-purple-500/10 text-purple-400'
   };
   return <span className={`badge ${styles[status] || styles.pending}`}>{status ? status.replace('_', ' ') : 'pending'}</span>;
 };
@@ -94,16 +95,18 @@ const CampaignDetail = () => {
     }
   };
 
-  const handleRunNow = async () => {
-    if (!window.confirm('This will immediately process all eligible leads for this campaign. Continue?')) return;
+  const handleToggleStatus = async () => {
     setRunning(true);
     try {
-      const res = await api.post(`/campaigns/${id}/run`);
-      alert(`Success! Processed ${res.data.processed} emails. Errors: ${res.data.errors}`);
+      const endpoint = campaign.active ? `/campaigns/${id}/pause` : `/campaigns/${id}/activate`;
+      const res = await api.post(endpoint);
+      if (!campaign.active) {
+        alert(`Campaign Activated! Processed ${res.data.summary?.processed || 0} emails. Errors: ${res.data.summary?.errors || 0}`);
+      }
       fetchData();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.error || 'Failed to run campaign');
+      alert(err.response?.data?.error || 'Action failed');
     } finally {
       setRunning(false);
     }
@@ -143,13 +146,31 @@ const CampaignDetail = () => {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <Link 
+            to={`/campaigns/${id}/reports`}
+            className="btn btn-secondary flex items-center justify-center gap-2"
+          >
+            <BarChart3 size={20} /> View Dynamic Reports
+          </Link>
           {isSuperAdmin && (
             <button 
-              onClick={handleRunNow}
+              onClick={handleToggleStatus}
               disabled={running}
-              className={`btn ${running ? 'bg-gray-700' : 'btn-primary'} flex items-center justify-center gap-2`}
+              className={`btn ${running ? 'bg-gray-700' : (campaign?.active ? 'bg-amber-500/10 text-amber-500 border border-amber-500/30' : 'btn-primary')} flex items-center justify-center gap-2`}
             >
-              <PlayCircle size={20} /> {running ? 'Processing...' : 'Run Campaign Now'}
+              {running ? (
+                <>
+                  <Activity className="animate-spin" size={20} /> Processing...
+                </>
+              ) : campaign?.active ? (
+                <>
+                  <Pause size={20} /> Pause Campaign
+                </>
+              ) : (
+                <>
+                  <PlayCircle size={20} /> Activate & Run Now
+                </>
+              )}
             </button>
           )}
         </div>
@@ -214,9 +235,8 @@ const CampaignDetail = () => {
               <div>
                 <h4 className="text-lg font-bold text-white mb-1">How Automation Works</h4>
                 <p className="text-sm text-gray-400 leading-relaxed">
-                  This campaign checks for new leads and follow-ups every day at <span className="text-white font-bold">9:00 AM</span>. 
-                  If a lead is "Ready" in the queue, it will automatically receive the next email in your sequence. 
-                  {isSuperAdmin && " You can also use the 'Run Campaign Now' button to process the queue immediately."}
+                  This campaign checks for new leads and follow-ups <span className="text-white font-bold">automatically</span>. 
+                  When you activate the campaign, add a new list, or import new leads, the system starts working <span className="text-white font-bold">immediately</span>.
                 </p>
               </div>
             </div>
@@ -260,8 +280,8 @@ const CampaignDetail = () => {
                           <div className="max-w-md">
                             <p className="text-gray-400 font-bold mb-2">No activity logs yet.</p>
                             <p className="text-gray-500 text-xs">
-                              Campaigns are automatically processed every day at 9:00 AM. 
-                              {isSuperAdmin ? " You can trigger a manual run using the 'Run Campaign Now' button above." : " Please wait for the next scheduled run or contact an administrator to trigger it manually."}
+                              Campaigns are automatically processed when active. 
+                              {isSuperAdmin ? " Activating a campaign or adding leads will trigger an immediate run." : " Please wait for the system to process your leads."}
                             </p>
                           </div>
                         </div>
@@ -300,6 +320,20 @@ const CampaignDetail = () => {
                 >
                   <Plus size={16} /> Manage Lead Lists
                 </button>
+              </div>
+            </div>
+
+            <div className="flex gap-4 mb-6 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+              <div className="text-primary"><CheckCircle2 size={20} /></div>
+              <div>
+                <p className="text-xs font-bold text-white mb-1">Safety Filters Active</p>
+                <p className="text-[10px] text-gray-500 leading-relaxed">
+                  To protect your sender reputation, the system automatically skips leads marked as 
+                  <span className="text-green-400 mx-1">replied</span>, 
+                  <span className="text-red-400 mx-1">bounced</span>, 
+                  <span className="text-slate-400 mx-1">completed</span>, or 
+                  <span className="text-purple-400 mx-1">unsubscribed</span>.
+                </p>
               </div>
             </div>
 

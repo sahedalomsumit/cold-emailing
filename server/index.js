@@ -180,9 +180,17 @@ app.put('/api/campaigns/:id', authenticate, checkAdmin, async (req, res) => {
     let query = supabase.from('campaigns').update({ name, from_email, sender_name, follow_up_delays, templates, lead_list_ids }).eq('id', req.params.id);
     if (!isSuperAdmin(req.user)) query = query.eq('user_id', req.user.id);
     const { data, error } = await query.select();
+    
     if (error) return res.status(500).json({ error: error.message });
     if (!data || data.length === 0) return res.status(404).json({ error: 'Campaign not found' });
-    res.json(data[0]);
+
+    const campaign = data[0];
+    if (campaign.active) {
+        console.log(`Campaign ${campaign.name} updated while active. Triggering immediate check...`);
+        processCampaign(campaign); // Run in background
+    }
+    
+    res.json(campaign);
 });
 
 app.delete('/api/campaigns/:id', authenticate, checkAdmin, async (req, res) => {
@@ -194,11 +202,24 @@ app.delete('/api/campaigns/:id', authenticate, checkAdmin, async (req, res) => {
 });
 
 app.post('/api/campaigns/:id/activate', authenticate, checkSuperAdmin, async (req, res) => {
-    let query = supabase.from('campaigns').update({ active: true }).eq('id', req.params.id);
-    if (!isSuperAdmin(req.user)) query = query.eq('user_id', req.user.id);
-    const { data, error } = await query.select();
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(data[0]);
+    try {
+        // 1. Mark as active
+        let query = supabase.from('campaigns').update({ active: true }).eq('id', req.params.id);
+        if (!isSuperAdmin(req.user)) query = query.eq('user_id', req.user.id);
+        const { data: campaignData, error } = await query.select().single();
+        
+        if (error) return res.status(500).json({ error: error.message });
+        if (!campaignData) return res.status(404).json({ error: 'Campaign not found' });
+
+        // 2. Start processing immediately
+        console.log(`Auto-starting campaign ${campaignData.name} (${campaignData.id}) upon activation...`);
+        const summary = await processCampaign(campaignData, true);
+        
+        res.json({ ...campaignData, summary });
+    } catch (err) {
+        console.error('Activation run crash:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.post('/api/campaigns/:id/pause', authenticate, checkSuperAdmin, async (req, res) => {
@@ -315,6 +336,20 @@ app.post('/api/lead-lists/:id/leads/import', authenticate, checkAdmin, upload.si
                 
                 console.log(`Successfully imported ${totalInserted} leads.`);
                 if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+                
+                // Trigger any active campaigns using this list
+                const { data: activeCampaigns } = await supabase.from('campaigns')
+                    .select('*')
+                    .eq('active', true)
+                    .contains('lead_list_ids', [req.params.id]);
+                
+                if (activeCampaigns && activeCampaigns.length > 0) {
+                    console.log(`Triggering ${activeCampaigns.length} campaigns for newly imported leads...`);
+                    for (const campaign of activeCampaigns) {
+                        processCampaign(campaign);
+                    }
+                }
+
                 res.json({ count: totalInserted });
             } catch (error) {
                 console.error('Supabase Import Error:', error.message);
@@ -431,6 +466,86 @@ app.get('/api/campaigns/:id/logs', authenticate, async (req, res) => {
         if (error) return res.status(500).json({ error: error.message });
         res.json(data);
     } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/campaigns/:id/reports', authenticate, async (req, res) => {
+    try {
+        const campaignId = req.params.id;
+        
+        // 1. Verify access
+        let cQuery = supabase.from('campaigns').select('id, lead_list_ids').eq('id', campaignId);
+        if (!isSuperAdmin(req.user)) cQuery = cQuery.eq('user_id', req.user.id);
+        const { data: campaign } = await cQuery.single();
+        if (!campaign) return res.status(403).json({ error: 'Access denied or campaign not found' });
+
+        // 2. Fetch Lead Stats
+        const { data: leadStats, error: lError } = await supabase.from('leads')
+            .select('status')
+            .in('list_id', campaign.lead_list_ids || []);
+        
+        if (lError) throw lError;
+
+        const leadCounts = {
+            total: leadStats.length,
+            pending: 0,
+            sent: 0,
+            replied: 0,
+            bounced: 0,
+            unsubscribed: 0,
+            completed: 0
+        };
+
+        leadStats.forEach(l => {
+            if (l.status.startsWith('follow_up')) leadCounts.sent++;
+            else if (leadCounts[l.status] !== undefined) leadCounts[l.status]++;
+            else leadCounts.pending++;
+        });
+
+        // 3. Fetch Log Stats (Sent vs Failed)
+        const { data: logStats, error: logError } = await supabase.from('email_logs')
+            .select('status, type, sent_at')
+            .eq('campaign_id', campaignId);
+        
+        if (logError) throw logError;
+
+        const emailStats = {
+            sent: logStats.filter(l => l.status === 'sent').length,
+            failed: logStats.filter(l => l.status === 'failed').length,
+            types: {}
+        };
+
+        logStats.forEach(l => {
+            emailStats.types[l.type] = (emailStats.types[l.type] || 0) + 1;
+        });
+
+        // 4. Timeline Data (Last 30 days)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const timeline = {};
+        for (let i = 0; i < 30; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            timeline[d.toISOString().split('T')[0]] = { sent: 0, failed: 0 };
+        }
+
+        logStats.forEach(l => {
+            const date = new Date(l.sent_at).toISOString().split('T')[0];
+            if (timeline[date]) {
+                timeline[date][l.status]++;
+            }
+        });
+
+        res.json({
+            leadCounts,
+            emailStats,
+            timeline: Object.entries(timeline).map(([date, counts]) => ({ date, ...counts })).reverse()
+        });
+
+    } catch (err) {
+        console.error('Report Error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -741,15 +856,16 @@ app.post('/api/campaigns/:id/run', authenticate, checkSuperAdmin, async (req, re
 });
 
 // --- CRON JOB ---
-cron.schedule('0 9 * * *', async () => {
-    console.log('Running daily campaign cron job...');
+// Runs every hour to check for follow-ups and new leads automatically
+cron.schedule('0 * * * *', async () => {
+    console.log('Running hourly campaign check...');
     const { data: campaigns } = await supabase.from('campaigns').select('*').eq('active', true);
     if (!campaigns) return;
     
     for (const campaign of campaigns) {
         await processCampaign(campaign);
     }
-    console.log('Daily cron job completed.');
+    console.log('Hourly check completed.');
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
