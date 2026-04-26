@@ -491,7 +491,9 @@ app.get('/api/campaigns/:id/reports', authenticate, async (req, res) => {
         // 2. Fetch Lead Stats
         const { data: leadStats, error: lError } = await supabase.from('leads')
             .select('status')
-            .in('list_id', campaign.lead_list_ids || []);
+            .in('list_id', campaign.lead_list_ids || [])
+            .not('email', 'is', null)
+            .neq('email', '');
         
         if (lError) throw lError;
 
@@ -734,6 +736,8 @@ async function processCampaign(campaign, manual = false) {
         .select('*')
         .in('list_id', campaign.lead_list_ids)
         .not('status', 'in', '("replied","bounced","completed","unsubscribed")')
+        .not('email', 'is', null)
+        .neq('email', '')
         .lt('follow_ups', (campaign.max_follow_ups || 0) + 1);
 
     if (leadsError) {

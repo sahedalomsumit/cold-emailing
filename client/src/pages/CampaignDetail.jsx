@@ -186,20 +186,27 @@ const CampaignDetail = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
         <div className="glass p-4 rounded-2xl">
           <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Total</p>
-          <p className="text-xl md:text-2xl font-bold text-white">{leads.length}</p>
+          <p className="text-xl md:text-2xl font-bold text-white">
+            {leads.filter(l => l.email && l.email.trim() !== '').length}
+          </p>
         </div>
         <div className="glass p-4 rounded-2xl">
           <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Sent</p>
-          <p className="text-xl md:text-2xl font-bold text-blue-400">{leads.filter(l => l.status !== 'pending').length}</p>
+          <p className="text-xl md:text-2xl font-bold text-blue-400">
+            {leads.filter(l => l.status !== 'pending').length}
+          </p>
         </div>
         <div className="glass p-4 rounded-2xl">
           <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Replied</p>
-          <p className="text-xl md:text-2xl font-bold text-green-400">{leads.filter(l => l.status === 'replied').length}</p>
+          <p className="text-xl md:text-2xl font-bold text-green-400">
+            {leads.filter(l => l.status === 'replied').length}
+          </p>
         </div>
         <div className="glass p-4 rounded-2xl border border-primary/20 bg-primary/5">
           <p className="text-[10px] text-primary uppercase font-bold tracking-widest mb-1">Queue</p>
           <p className="text-xl md:text-2xl font-bold text-white">
             {leads.filter(l => {
+              if (!l.email || l.email.trim() === '') return false;
               if (l.status === 'pending' || !l.last_contact) return true;
               const followUpIndex = l.follow_ups - 1;
               const delayDays = campaign?.follow_up_delays?.[followUpIndex];
@@ -349,10 +356,13 @@ const CampaignDetail = () => {
                 </thead>
                 <tbody className="divide-y divide-border/50">
                   {leads
-                    .filter(l => 
-                      (l.company?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
-                      (l.email?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-                    )
+                    .filter(l => {
+                      const matchesSearch = (l.company?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
+                                          (l.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                                          (l.phone?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+                      const hasEmail = l.email && l.email.trim() !== '';
+                      return matchesSearch && hasEmail;
+                    })
                     .map(lead => (
                     <tr key={lead.id} className="hover:bg-card/30 transition-colors text-sm">
                       <td className="px-6 py-4">

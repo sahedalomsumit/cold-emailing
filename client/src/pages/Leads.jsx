@@ -31,6 +31,8 @@ const Leads = () => {
   });
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterEmailOnly, setFilterEmailOnly] = useState(false);
+  const [filterPhoneOnly, setFilterPhoneOnly] = useState(false);
 
   const [isEditingName, setIsEditingName] = useState(false);
   const [editingName, setEditingName] = useState('');
@@ -309,7 +311,13 @@ const Leads = () => {
                       )}
                     </div>
                   )}
-                  <p className="text-sm text-gray-500">{leads.length} leads in this list</p>
+                  <p className="text-sm text-gray-500">
+                    {leads.filter(l => {
+                      const emailMatch = !filterEmailOnly || (l.email && l.email.trim() !== '');
+                      const phoneMatch = !filterPhoneOnly || (l.phone && l.phone.trim() !== '');
+                      return emailMatch && phoneMatch;
+                    }).length} leads in this list
+                  </p>
                 </div>
                 {isAdmin && (
                   <div className="flex flex-wrap gap-2 w-full sm:w-auto">
@@ -322,6 +330,32 @@ const Leads = () => {
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-2 text-xs text-white focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                       />
+                    </div>
+                    <div className="flex items-center gap-4 px-3 py-2 bg-card border border-border rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="checkbox" 
+                          id="filterEmailOnly"
+                          checked={filterEmailOnly}
+                          onChange={(e) => setFilterEmailOnly(e.target.checked)}
+                          className="w-4 h-4 rounded border-gray-600 bg-background text-primary focus:ring-primary/20 cursor-pointer"
+                        />
+                        <label htmlFor="filterEmailOnly" className="text-[10px] font-bold text-gray-400 uppercase cursor-pointer select-none">
+                          Email Only
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-2 border-l border-border pl-4">
+                        <input 
+                          type="checkbox" 
+                          id="filterPhoneOnly"
+                          checked={filterPhoneOnly}
+                          onChange={(e) => setFilterPhoneOnly(e.target.checked)}
+                          className="w-4 h-4 rounded border-gray-600 bg-background text-primary focus:ring-primary/20 cursor-pointer"
+                        />
+                        <label htmlFor="filterPhoneOnly" className="text-[10px] font-bold text-gray-400 uppercase cursor-pointer select-none">
+                          Phone Only
+                        </label>
+                      </div>
                     </div>
                     <button onClick={() => setManualAdd(true)} className="btn btn-secondary text-xs py-2 flex-1 sm:flex-none flex items-center justify-center gap-2">
                       <Plus size={16} /> Add Lead
@@ -353,10 +387,18 @@ const Leads = () => {
                     </thead>
                     <tbody className="divide-y divide-border/50">
                       {leads
-                        .filter(l => 
-                          (l.company?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
-                          (l.email?.toLowerCase() || '').includes(searchTerm.toLowerCase())
-                        )
+                        .filter(l => {
+                          const matchesSearch = (l.company?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
+                                              (l.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                                              (l.phone?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+                          const hasEmail = l.email && l.email.trim() !== '';
+                          const hasPhone = l.phone && l.phone.trim() !== '';
+                          
+                          const emailMatch = !filterEmailOnly || hasEmail;
+                          const phoneMatch = !filterPhoneOnly || hasPhone;
+                          
+                          return matchesSearch && emailMatch && phoneMatch;
+                        })
                         .map(lead => (
                         <tr key={lead.id} className="hover:bg-card/30 transition-colors group text-sm">
                           <td className="px-6 py-4">
