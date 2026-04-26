@@ -600,30 +600,156 @@ app.post('/api/send-test', authenticate, checkAdmin, async (req, res) => {
 });
 
 // --- CRON JOB ---
-cron.schedule('0 9 * * *', async () => {
-    const { data: campaigns } = await supabase.from('campaigns').select('*').eq('active', true);
-    if (!campaigns) return;
-    for (const campaign of campaigns) {
-        if (!campaign.lead_list_ids || campaign.lead_list_ids.length === 0) continue;
-        
-        const { data: leads } = await supabase.from('leads')
-            .select('*')
-            .in('list_id', campaign.lead_list_ids)
-            .not('status', 'in', '("replied","bounced","completed")')
-            .lt('follow_ups', campaign.max_follow_ups + 1);
-            
-        if (!leads) continue;
-        for (const lead of leads) {
-            let type = lead.last_contact ? `follow_up_${lead.follow_ups + 1}` : 'initial';
-            const template = campaign.templates[type];
-            if (!template) continue;
-            const result = await sendEmail({ to: lead.email, lead, subject: template.subject, body: template.body, fromEmail: campaign.from_email, fromName: campaign.sender_name });
-            if (result.success) {
-                await supabase.from('leads').update({ status: type === 'initial' ? 'sent' : type, follow_ups: lead.follow_ups + 1, last_contact: new Date().toISOString() }).eq('id', lead.id);
-                await supabase.from('email_logs').insert([{ lead_id: lead.id, campaign_id: campaign.id, type, status: 'sent' }]);
+// --- CAMPAIGN EXECUTION LOGIC ---
+async function processCampaign(campaign, manual = false) {
+    if (!campaign.active && !manual) return { processed: 0, errors: 0 };
+    if (!campaign.lead_list_ids || campaign.lead_list_ids.length === 0) return { processed: 0, errors: 0 };
+
+    console.log(`Processing campaign: ${campaign.name} (${campaign.id})`);
+
+    const { data: leads, error: leadsError } = await supabase.from('leads')
+        .select('*')
+        .in('list_id', campaign.lead_list_ids)
+        .not('status', 'in', '("replied","bounced","completed","unsubscribed")')
+        .lt('follow_ups', (campaign.max_follow_ups || 0) + 1);
+
+    if (leadsError) {
+        console.error(`Error fetching leads for campaign ${campaign.id}:`, leadsError.message);
+        return { processed: 0, errors: 1 };
+    }
+
+    if (!leads || leads.length === 0) {
+        console.log(`No eligible leads for campaign ${campaign.id}`);
+        return { processed: 0, errors: 0 };
+    }
+
+    let processedCount = 0;
+    let errorCount = 0;
+
+    for (const lead of leads) {
+        try {
+            // Determine email type and if it's time to send
+            let type = 'initial';
+            let shouldSend = false;
+
+            if (!lead.last_contact || lead.follow_ups === 0) {
+                // Initial email
+                type = 'initial';
+                shouldSend = true;
+            } else {
+                // Follow-up
+                const followUpIndex = lead.follow_ups - 1; // 0-based index for delays array
+                const delayDays = campaign.follow_up_delays ? campaign.follow_up_delays[followUpIndex] : null;
+                
+                if (delayDays !== null && delayDays !== undefined) {
+                    const lastContact = new Date(lead.last_contact);
+                    const now = new Date();
+                    const diffTime = Math.abs(now - lastContact);
+                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDays >= delayDays) {
+                        type = `follow_up_${lead.follow_ups}`;
+                        shouldSend = true;
+                    }
+                }
             }
+
+            if (shouldSend) {
+                const template = campaign.templates[type];
+                if (!template) {
+                    console.warn(`No template found for type "${type}" in campaign ${campaign.id}`);
+                    continue;
+                }
+
+                console.log(`Sending ${type} to ${lead.email}...`);
+                const result = await sendEmail({ 
+                    to: lead.email, 
+                    lead, 
+                    subject: template.subject, 
+                    body: template.body, 
+                    fromEmail: campaign.from_email, 
+                    fromName: campaign.sender_name 
+                });
+
+                if (result.success) {
+                    await supabase.from('leads').update({ 
+                        status: type === 'initial' ? 'sent' : type, 
+                        follow_ups: lead.follow_ups + 1, 
+                        last_contact: new Date().toISOString() 
+                    }).eq('id', lead.id);
+
+                    await supabase.from('email_logs').insert([{ 
+                        lead_id: lead.id, 
+                        campaign_id: campaign.id, 
+                        type, 
+                        status: 'sent',
+                        sent_at: new Date().toISOString()
+                    }]);
+                    
+                    processedCount++;
+                } else {
+                    await supabase.from('email_logs').insert([{ 
+                        lead_id: lead.id, 
+                        campaign_id: campaign.id, 
+                        type, 
+                        status: 'failed',
+                        error_message: result.error,
+                        sent_at: new Date().toISOString()
+                    }]);
+                    errorCount++;
+                }
+                
+                // Add a small delay between emails to avoid rate limits
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        } catch (err) {
+            console.error(`Error processing lead ${lead.id}:`, err.message);
+            errorCount++;
         }
     }
+
+    // Update last run time
+    await supabase.from('campaigns').update({ last_run: new Date().toISOString() }).eq('id', campaign.id);
+
+    return { processed: processedCount, errors: errorCount };
+}
+
+// --- CAMPAIGN ROUTES (Continued) ---
+app.post('/api/campaigns/:id/run', authenticate, checkSuperAdmin, async (req, res) => {
+    console.log(`Manual run requested for campaign: ${req.params.id} by ${req.user.email}`);
+    try {
+        const { data: campaign, error } = await supabase.from('campaigns').select('*').eq('id', req.params.id).single();
+        
+        if (error) {
+            console.error('Supabase error fetching campaign:', error.message);
+            return res.status(404).json({ error: `Campaign not found: ${error.message}` });
+        }
+        
+        if (!campaign) {
+            console.warn('Campaign object is empty');
+            return res.status(404).json({ error: 'Campaign not found' });
+        }
+
+        console.log(`Campaign found: ${campaign.name}. Starting processing...`);
+        const summary = await processCampaign(campaign, true);
+        console.log(`Processing complete. Summary:`, summary);
+        res.json({ success: true, ...summary });
+    } catch (err) {
+        console.error('Manual run route crash:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// --- CRON JOB ---
+cron.schedule('0 9 * * *', async () => {
+    console.log('Running daily campaign cron job...');
+    const { data: campaigns } = await supabase.from('campaigns').select('*').eq('active', true);
+    if (!campaigns) return;
+    
+    for (const campaign of campaigns) {
+        await processCampaign(campaign);
+    }
+    console.log('Daily cron job completed.');
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

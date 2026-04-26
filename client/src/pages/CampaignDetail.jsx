@@ -4,7 +4,7 @@ import api from '../utils/api';
 import { supabase } from '../utils/supabase';
 import { 
   Upload, Trash2, ArrowLeft, CheckCircle2, XCircle, Mail, Clock, 
-  Camera, MessageCircle, Send, Briefcase, Globe, Phone, Plus, Settings, Activity, History, Edit, Search
+  Camera, MessageCircle, Send, Briefcase, Globe, Phone, Plus, Settings, Activity, History, Edit, Search, PlayCircle, Rocket
 } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
@@ -25,11 +25,12 @@ const StatusBadge = ({ status }) => {
 const CampaignDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin } = useAuth();
   const [campaign, setCampaign] = useState(null);
   const [leads, setLeads] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [running, setRunning] = useState(false);
   const [importing, setImporting] = useState(false);
   const [csvPreview, setCsvPreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -93,6 +94,21 @@ const CampaignDetail = () => {
     }
   };
 
+  const handleRunNow = async () => {
+    if (!window.confirm('This will immediately process all eligible leads for this campaign. Continue?')) return;
+    setRunning(true);
+    try {
+      const res = await api.post(`/campaigns/${id}/run`);
+      alert(`Success! Processed ${res.data.processed} emails. Errors: ${res.data.errors}`);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || 'Failed to run campaign');
+    } finally {
+      setRunning(false);
+    }
+  };
+
   const handleDeleteCampaign = async () => {
     if (!window.confirm('Are you sure you want to delete this campaign and all its leads? This action cannot be undone.')) return;
     try {
@@ -127,8 +143,22 @@ const CampaignDetail = () => {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          {/* Direct lead management removed as per request to use Lead Lists */}
+          {isSuperAdmin && (
+            <button 
+              onClick={handleRunNow}
+              disabled={running}
+              className={`btn ${running ? 'bg-gray-700' : 'btn-primary'} flex items-center justify-center gap-2`}
+            >
+              <PlayCircle size={20} /> {running ? 'Processing...' : 'Run Campaign Now'}
+            </button>
+          )}
         </div>
+
+        {campaign?.last_run && (
+          <div className="flex items-center gap-2 text-[10px] text-gray-500 font-mono bg-card/30 w-fit px-3 py-1 rounded-full border border-border/50">
+            <Clock size={10} /> Last Processed: {new Date(campaign.last_run).toLocaleString()}
+          </div>
+        )}
       </header>
 
       {/* Stats Summary */}
@@ -145,10 +175,17 @@ const CampaignDetail = () => {
           <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Replied</p>
           <p className="text-xl md:text-2xl font-bold text-green-400">{leads.filter(l => l.status === 'replied').length}</p>
         </div>
-        <div className="glass p-4 rounded-2xl">
-          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest mb-1">Success</p>
-          <p className="text-xl md:text-2xl font-bold text-purple-400">
-            {leads.length > 0 ? ((leads.filter(l => l.status === 'replied').length / leads.length) * 100).toFixed(1) : 0}%
+        <div className="glass p-4 rounded-2xl border border-primary/20 bg-primary/5">
+          <p className="text-[10px] text-primary uppercase font-bold tracking-widest mb-1">Queue</p>
+          <p className="text-xl md:text-2xl font-bold text-white">
+            {leads.filter(l => {
+              if (l.status === 'pending' || !l.last_contact) return true;
+              const followUpIndex = l.follow_ups - 1;
+              const delayDays = campaign?.follow_up_delays?.[followUpIndex];
+              if (delayDays === undefined) return false;
+              const diffDays = Math.floor(Math.abs(new Date() - new Date(l.last_contact)) / (1000 * 60 * 60 * 24));
+              return diffDays >= delayDays && l.follow_ups <= campaign.max_follow_ups;
+            }).length} Ready
           </p>
         </div>
       </div>
@@ -168,43 +205,72 @@ const CampaignDetail = () => {
 
 
       {activeTab === 'activity' && (
-        <div className="glass rounded-3xl overflow-hidden border border-border/50 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[800px] md:min-w-full">
-              <thead>
-                <tr className="bg-card/80 border-b border-border">
-                  <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Event</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Lead</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-right">Time</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {activityLogs.map(log => (
-                  <tr key={log.id} className="hover:bg-card/30 transition-colors text-sm">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${log.status === 'sent' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}><History size={16} /></div>
-                        <span className="font-bold text-white capitalize">{log.type.replace('_', ' ')}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="font-bold text-white">{log.leads?.company || 'Lead'}</p>
-                      <p className="text-[10px] text-gray-500">{log.leads?.email}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`text-xs font-bold uppercase ${log.status === 'sent' ? 'text-green-500' : 'text-red-500'}`}>{log.status}</span>
-                    </td>
-                    <td className="px-6 py-4 text-right text-xs text-gray-500 font-mono">{new Date(log.sent_at || log.created_at).toLocaleString()}</td>
+        <div className="space-y-6">
+          <div className="glass p-6 rounded-3xl border border-border/50 bg-blue-500/5">
+            <div className="flex gap-4 items-start">
+              <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400">
+                <Rocket size={24} />
+              </div>
+              <div>
+                <h4 className="text-lg font-bold text-white mb-1">How Automation Works</h4>
+                <p className="text-sm text-gray-400 leading-relaxed">
+                  This campaign checks for new leads and follow-ups every day at <span className="text-white font-bold">9:00 AM</span>. 
+                  If a lead is "Ready" in the queue, it will automatically receive the next email in your sequence. 
+                  {isSuperAdmin && " You can also use the 'Run Campaign Now' button to process the queue immediately."}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="glass rounded-3xl overflow-hidden border border-border/50 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[800px] md:min-w-full">
+                <thead>
+                  <tr className="bg-card/80 border-b border-border">
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Event</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Lead</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Status</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-right">Time</th>
                   </tr>
-                ))}
-                {activityLogs.length === 0 && (
-                  <tr>
-                    <td colSpan="4" className="px-6 py-20 text-center text-gray-500 italic">No activity logs yet.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {activityLogs.map(log => (
+                    <tr key={log.id} className="hover:bg-card/30 transition-colors text-sm">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${log.status === 'sent' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}><History size={16} /></div>
+                          <span className="font-bold text-white capitalize">{log.type.replace('_', ' ')}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="font-bold text-white">{log.leads?.company || 'Lead'}</p>
+                        <p className="text-[10px] text-gray-500">{log.leads?.email}</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`text-xs font-bold uppercase ${log.status === 'sent' ? 'text-green-500' : 'text-red-500'}`}>{log.status}</span>
+                      </td>
+                      <td className="px-6 py-4 text-right text-xs text-gray-500 font-mono">{new Date(log.sent_at || log.created_at).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                  {activityLogs.length === 0 && (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-20 text-center">
+                        <div className="flex flex-col items-center gap-4">
+                          <History size={48} className="text-gray-700" />
+                          <div className="max-w-md">
+                            <p className="text-gray-400 font-bold mb-2">No activity logs yet.</p>
+                            <p className="text-gray-500 text-xs">
+                              Campaigns are automatically processed every day at 9:00 AM. 
+                              {isSuperAdmin ? " You can trigger a manual run using the 'Run Campaign Now' button above." : " Please wait for the next scheduled run or contact an administrator to trigger it manually."}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

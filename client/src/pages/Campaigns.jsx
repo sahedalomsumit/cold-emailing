@@ -13,9 +13,10 @@ import {
   Mail,
   Users,
   Megaphone,
+  PlayCircle,
 } from "lucide-react";
 
-const CampaignCard = ({ campaign, onToggle, onDelete }) => {
+const CampaignCard = ({ campaign, onToggle, onDelete, onRun }) => {
   const navigate = useNavigate();
   const { isSuperAdmin } = useAuth();
 
@@ -61,9 +62,17 @@ const CampaignCard = ({ campaign, onToggle, onDelete }) => {
           <div className="flex gap-2">
             <button
               onClick={() => onToggle(campaign)}
+              title={campaign.active ? "Pause Campaign" : "Activate Campaign"}
               className={`p-2 rounded-lg border border-border hover:border-primary transition-colors ${campaign.active ? "text-amber-500" : "text-green-500"}`}
             >
               {campaign.active ? <Pause size={18} /> : <Play size={18} />}
+            </button>
+            <button
+              onClick={() => onRun(campaign)}
+              title="Run Campaign Now"
+              className="p-2 rounded-lg border border-border hover:border-primary text-primary transition-colors"
+            >
+              <PlayCircle size={18} />
             </button>
           </div>
         )}
@@ -190,6 +199,18 @@ const Campaigns = () => {
     }
   };
 
+  const handleRun = async (campaign) => {
+    if (!window.confirm(`Immediately process leads for "${campaign.name}"?`)) return;
+    try {
+      const res = await api.post(`/campaigns/${campaign.id}/run`);
+      alert(`Processed ${res.data.processed} emails. Errors: ${res.data.errors}`);
+      fetchCampaigns();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || 'Failed to run campaign');
+    }
+  };
+
   const handleDelete = async (id) => {
     if (
       !window.confirm(
@@ -231,6 +252,7 @@ const Campaigns = () => {
             campaign={c}
             onToggle={handleToggle}
             onDelete={handleDelete}
+            onRun={handleRun}
           />
         ))}
         {campaigns.length === 0 && (
