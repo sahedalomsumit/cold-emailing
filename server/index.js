@@ -752,20 +752,27 @@ async function processCampaign(campaign, manual = false) {
 
     let processedCount = 0;
     let errorCount = 0;
+    const MAX_PER_RUN = 20; // Limit emails per run to stay under radar
 
-    for (const lead of leads) {
+    // Shuffle leads to avoid sending in the same order every time
+    const shuffledLeads = leads.sort(() => Math.random() - 0.5);
+
+    for (const lead of shuffledLeads) {
+        if (processedCount >= MAX_PER_RUN) {
+            console.log(`Reached limit of ${MAX_PER_RUN} emails for this run. Stopping.`);
+            break;
+        }
+
         try {
-            // Determine email type and if it's time to send
+            // ... existing logic to determine shouldSend ...
             let type = 'initial';
             let shouldSend = false;
 
             if (!lead.last_contact || lead.follow_ups === 0) {
-                // Initial email
                 type = 'initial';
                 shouldSend = true;
             } else {
-                // Follow-up
-                const followUpIndex = lead.follow_ups - 1; // 0-based index for delays array
+                const followUpIndex = lead.follow_ups - 1;
                 const delayDays = campaign.follow_up_delays ? campaign.follow_up_delays[followUpIndex] : null;
                 
                 if (delayDays !== null && delayDays !== undefined) {
@@ -824,10 +831,18 @@ async function processCampaign(campaign, manual = false) {
                         sent_at: new Date().toISOString()
                     }]);
                     errorCount++;
+
+                    // If we hit a rate limit error specifically, stop this run entirely
+                    if (result.error && result.error.includes('550 5.4.6')) {
+                        console.error('Rate limit hit (550 5.4.6). Stopping campaign run.');
+                        break; 
+                    }
                 }
                 
-                // Add a small delay between emails to avoid rate limits
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // Add a random human-like delay (5-15 seconds) between emails
+                const delay = Math.floor(Math.random() * (15000 - 5000 + 1) + 5000);
+                console.log(`Waiting ${delay / 1000}s before next email...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
         } catch (err) {
             console.error(`Error processing lead ${lead.id}:`, err.message);
