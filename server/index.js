@@ -211,11 +211,11 @@ app.post('/api/campaigns/:id/activate', authenticate, checkSuperAdmin, async (re
         if (error) return res.status(500).json({ error: error.message });
         if (!campaignData) return res.status(404).json({ error: 'Campaign not found' });
 
-        // 2. Start processing immediately
-        console.log(`Auto-starting campaign ${campaignData.name} (${campaignData.id}) upon activation...`);
-        const summary = await processCampaign(campaignData, true);
+        // 2. Start processing in background immediately
+        console.log(`Auto-starting campaign ${campaignData.name} (${campaignData.id}) in background upon activation...`);
+        processCampaign(campaignData, true); // Don't await, run in background
         
-        res.json({ ...campaignData, summary });
+        res.json(campaignData);
     } catch (err) {
         console.error('Activation run crash:', err);
         res.status(500).json({ error: err.message });
@@ -872,10 +872,9 @@ app.post('/api/campaigns/:id/run', authenticate, checkSuperAdmin, async (req, re
             return res.status(404).json({ error: 'Campaign not found' });
         }
 
-        console.log(`Campaign found: ${campaign.name}. Starting processing...`);
-        const summary = await processCampaign(campaign, true);
-        console.log(`Processing complete. Summary:`, summary);
-        res.json({ success: true, ...summary });
+        console.log(`Campaign found: ${campaign.name}. Starting processing in background...`);
+        processCampaign(campaign, true); // Don't await, run in background
+        res.json({ success: true, message: 'Campaign execution started in background' });
     } catch (err) {
         console.error('Manual run route crash:', err);
         res.status(500).json({ error: err.message });

@@ -101,7 +101,7 @@ const CampaignDetail = () => {
       const endpoint = campaign.active ? `/campaigns/${id}/pause` : `/campaigns/${id}/activate`;
       const res = await api.post(endpoint);
       if (!campaign.active) {
-        alert(`Campaign Activated! Processed ${res.data.summary?.processed || 0} emails. Errors: ${res.data.summary?.errors || 0}`);
+        alert(`Campaign Activated! The system is now processing leads in the background. You can check the Activity tab in a few moments for updates.`);
       }
       fetchData();
     } catch (err) {
