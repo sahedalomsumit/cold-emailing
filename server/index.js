@@ -268,6 +268,14 @@ app.delete('/api/lead-lists/:id', authenticate, checkAdmin, async (req, res) => 
     res.json({ success: true });
 });
 
+app.delete('/api/lead-lists/:id/leads', authenticate, checkAdmin, async (req, res) => {
+    let query = supabase.from('leads').delete().eq('list_id', req.params.id);
+    if (!isSuperAdmin(req.user)) query = query.eq('user_id', req.user.id);
+    const { error } = await query;
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
 // --- LEAD ROUTES ---
 app.get('/api/lead-lists/:id/leads', authenticate, async (req, res) => {
     const { data, error } = await supabase.from('leads').select('*').eq('list_id', req.params.id).order('created_at', { ascending: false });

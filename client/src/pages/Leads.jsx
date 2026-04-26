@@ -193,6 +193,18 @@ const Leads = () => {
     }
   };
 
+  const handleDeleteAllLeads = async () => {
+    if (!selectedList) return;
+    if (!window.confirm(`Are you sure you want to delete ALL ${leads.length} leads in "${selectedList.name}"? This will also delete them from any active campaigns. This action cannot be undone.`)) return;
+    
+    try {
+      await api.delete(`/lead-lists/${selectedList.id}/leads`);
+      setLeads([]);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete leads.');
+    }
+  };
+
   if (loading) return <div className="p-8 text-center text-gray-500 font-sans">Loading leads...</div>;
 
   return (
@@ -316,6 +328,13 @@ const Leads = () => {
                     </button>
                     <button onClick={() => setShowImportModal(true)} className="btn btn-primary text-xs py-2 flex-1 sm:flex-none flex items-center justify-center gap-2">
                       <Upload size={16} /> Import CSV
+                    </button>
+                    <button 
+                      onClick={handleDeleteAllLeads} 
+                      disabled={leads.length === 0}
+                      className="btn bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 text-xs py-2 flex-1 sm:flex-none flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Trash2 size={16} /> Delete All Leads
                     </button>
                   </div>
                 )}
