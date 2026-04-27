@@ -4,7 +4,7 @@ import api from '../utils/api';
 import { supabase } from '../utils/supabase';
 import { 
   Upload, Trash2, ArrowLeft, CheckCircle2, XCircle, Mail, Clock, 
-  Camera, MessageCircle, Send, Briefcase, Globe, Phone, Plus, Settings, Activity, History, Edit, Search, PlayCircle, Rocket, BarChart3
+  Camera, MessageCircle, Send, Briefcase, Globe, Phone, Plus, Settings, Activity, History, Edit, Search, PlayCircle, Rocket, BarChart3, Pause
 } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
