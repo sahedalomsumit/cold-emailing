@@ -83,11 +83,20 @@ app.get('/', (req, res) => {
 // --- SMTP CONFIG (Zoho Mail) ---
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.zoho.eu',
-    port: process.env.SMTP_PORT || 465,
-    secure: true, // true for 465, false for other ports
+    port: parseInt(process.env.SMTP_PORT) || 465,
+    secure: parseInt(process.env.SMTP_PORT) === 465 || !process.env.SMTP_PORT, // true for 465, false for other ports
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
+    },
+    pool: true, // Use pooling to reuse connections for batches
+    maxConnections: 1, // Only one connection at a time to be safe with Zoho
+    maxMessages: 100, // Close connection after 100 messages
+    connectionTimeout: 20000, // 20 seconds
+    greetingTimeout: 20000, // 20 seconds
+    socketTimeout: 30000, // 30 seconds
+    tls: {
+        rejectUnauthorized: false // Helps with some certificate issues in cloud environments
     }
 });
 
@@ -137,7 +146,13 @@ async function sendEmail({ to, lead, subject, body, fromName, fromEmail }) {
         const info = await transporter.sendMail(mailOptions);
         return { success: true, data: info };
     } catch (error) {
-        console.error('Email Error:', error.message);
+        console.error('Email Error Details:', {
+            message: error.message,
+            code: error.code,
+            command: error.command,
+            response: error.response,
+            stack: error.stack
+        });
         return { success: false, error: error.message };
     }
 }
