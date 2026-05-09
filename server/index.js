@@ -84,19 +84,22 @@ app.get('/', (req, res) => {
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.zoho.eu',
     port: parseInt(process.env.SMTP_PORT) || 465,
-    secure: parseInt(process.env.SMTP_PORT) === 465 || !process.env.SMTP_PORT, // true for 465, false for other ports
+    secure: parseInt(process.env.SMTP_PORT) === 465, // true for 465, false for others
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
     },
-    pool: true, // Use pooling to reuse connections for batches
-    maxConnections: 1, // Only one connection at a time to be safe with Zoho
-    maxMessages: 100, // Close connection after 100 messages
-    connectionTimeout: 20000, // 20 seconds
-    greetingTimeout: 20000, // 20 seconds
-    socketTimeout: 30000, // 30 seconds
+    pool: true,
+    maxConnections: 1,
+    maxMessages: 100,
+    connectionTimeout: 30000, // Increased to 30s
+    greetingTimeout: 30000,   // Increased to 30s
+    socketTimeout: 60000,     // Increased to 60s
+    debug: true,              // Enable debug output
+    logger: true,             // Log to console
     tls: {
-        rejectUnauthorized: false // Helps with some certificate issues in cloud environments
+        rejectUnauthorized: false,
+        minVersion: 'TLSv1.2'
     }
 });
 
